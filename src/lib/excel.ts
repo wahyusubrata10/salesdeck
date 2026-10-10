@@ -1,5 +1,5 @@
 import type { ParseResult, SheetInfo, WorkerRequest, WorkerResponse } from './excel.worker'
-import type { FieldKey } from './types'
+import type { ParseOptions } from './parseCore'
 
 export type { ParseResult, SheetInfo }
 
@@ -30,13 +30,8 @@ export async function inspectWorkbook(buf: ArrayBuffer): Promise<SheetInfo[]> {
   return res.sheets
 }
 
-export async function parseWorkbook(
-  buf: ArrayBuffer,
-  sheet: string,
-  headerRow: number,
-  mapping: Partial<Record<FieldKey, string>>,
-): Promise<ParseResult> {
-  const res = await run({ type: 'parse', buf, sheet, headerRow, mapping })
+export async function parseWorkbook(buf: ArrayBuffer, opt: ParseOptions): Promise<ParseResult> {
+  const res = await run({ type: 'parse', buf, opt })
   if (res.type !== 'parse') throw new Error('Respons tidak terduga')
   return res.result
 }

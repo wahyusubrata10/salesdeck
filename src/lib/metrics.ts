@@ -1,19 +1,84 @@
-import { guessChannel } from './fields'
+import { guessChannel, guessTrx } from './fields'
 import { monthOf, timeGone, todayYmd, workdaysOfMonth, type TimeGone } from './dates'
-import type { Channel, DistributorConfig, MonthTarget, SaleRow } from './types'
+import type { DistributorConfig, MonthTarget, SaleRow } from './types'
 import { emptyTarget } from './types'
 
 export const CHANNELS = ['GT', 'MT'] as const
 export type Ch = (typeof CHANNELS)[number]
 export const CHANNEL_LABEL: Record<Ch, string> = { GT: 'Traditional (GT)', MT: 'Modern (MT)' }
 
-export function channelOf(cfg: DistributorConfig, r: SaleRow): Channel {
-  if (!cfg.mapping.kategori) return cfg.defaultChannel
-  return cfg.channelMap[r.kt] ?? guessChannel(r.kt)
+// Baris yang sudah melewati semua aturan distributor (jenis transaksi, channel, brand, harga).
+export interface Row {
+  d: string
+  f: string
+  c: string
+  cn: string
+  s: string
+  k: string
+  n: string
+  ch: Ch
+  b: string // grup brand
+  v: number // omset
 }
 
-export const brandOf = (cfg: DistributorConfig, r: SaleRow) =>
-  cfg.brandMap[r.br]?.trim() || r.br || 'LAINNYA'
+export interface EnrichStats {
+  excluded: number // baris diabaikan (jenis transaksi / channel)
+  unpriced: { k: string; n: string; rows: number }[] // barang tanpa harga NFI (mode master)
+}
+
+export const rawChannel = (cfg: DistributorConfig, r: SaleRow) => cfg.items[r.k]?.channel ?? r.kt
+export const rawBrand = (cfg: DistributorConfig, r: SaleRow) => cfg.items[r.k]?.brand ?? r.br
+
+export function enrich(cfg: DistributorConfig, rows: SaleRow[]): { rows: Row[]; stats: EnrichStats } {
+  const out: Row[] = []
+  let excluded = 0
+  const unpriced = new Map<string, { k: string; n: string; rows: number }>()
+  const hasChannel = !!cfg.mapping.kategori || Object.values(cfg.items).some((i) => i.channel)
+  for (const r of rows) {
+    if (cfg.mapping.jenis && (cfg.trxMap[r.tx] ?? guessTrx(r.tx)) === 'X') {
+      excluded++
+      continue
+    }
+    let v = r.om
+    if (cfg.omsetMode === 'master') {
+      const h = cfg.items[r.k]?.harga
+      if (!h) {
+        // Dicatat sebelum filter channel: barang yang belum dikenal juga belum punya channel.
+        const u = unpriced.get(r.k) ?? { k: r.k, n: r.n, rows: 0 }
+        u.rows++
+        unpriced.set(r.k, u)
+      }
+      v = r.q * (h ?? 0)
+    }
+    const kt = rawChannel(cfg, r)
+    const ch = hasChannel ? (cfg.channelMap[kt] ?? guessChannel(kt)) : cfg.defaultChannel
+    if (ch === 'X') {
+      excluded++
+      continue
+    }
+    const br = rawBrand(cfg, r)
+    out.push({
+      d: r.d, f: r.f, c: r.c, cn: r.cn, k: r.k, n: r.n, ch,
+      s: cfg.salesmanMap[r.s]?.trim() || r.s,
+      b: cfg.brandMap[br]?.trim() || br || 'LAINNYA',
+      v,
+    })
+  }
+  return { rows: out, stats: { excluded, unpriced: [...unpriced.values()].sort((a, b) => b.rows - a.rows) } }
+}
+
+export interface Filter {
+  salesman?: string
+  brand?: string
+  ch?: Ch
+}
+
+export const isFiltered = (f: Filter) => !!(f.salesman || f.brand || f.ch)
+
+export const applyFilter = (rows: Row[], f: Filter) =>
+  isFiltered(f)
+    ? rows.filter((r) => (!f.salesman || r.s === f.salesman) && (!f.brand || r.b === f.brand) && (!f.ch || r.ch === f.ch))
+    : rows
 
 export interface BrandLine {
   brand: string
@@ -78,8 +143,7 @@ const addTo = <K>(m: Map<K, Set<string>>, k: K, v: string) => {
 }
 
 export function summarize(
-  cfg: DistributorConfig,
-  allRows: SaleRow[],
+  allRows: Row[],
   month: string,
   target: MonthTarget = emptyTarget(),
   today = todayYmd(),
@@ -98,21 +162,20 @@ export function summarize(
   let rowCount = 0
 
   for (const r of rows) {
-    const ch = channelOf(cfg, r)
-    if (ch === 'X') continue
+    const ch = r.ch
     rowCount++
-    const brand = brandOf(cfg, r)
+    const brand = r.b
     const fak = r.f || r.c
-    omset[ch] += r.om
-    omset.total += r.om
+    omset[ch] += r.v
+    omset.total += r.v
     custByCh[ch].add(r.c)
 
     let b = brandAgg[ch].get(brand)
     if (!b) brandAgg[ch].set(brand, (b = { om: 0, cust: new Set() }))
-    b.om += r.om
+    b.om += r.v
     b.cust.add(r.c)
 
-    dayOmset.set(r.d, (dayOmset.get(r.d) ?? 0) + r.om)
+    dayOmset.set(r.d, (dayOmset.get(r.d) ?? 0) + r.v)
     addTo(dayFaktur, r.d, fak)
     if (!lastDate || r.d > lastDate) lastDate = r.d
 
@@ -125,13 +188,13 @@ export function summarize(
 
     let s = sales.get(r.s)
     if (!s) sales.set(r.s, (s = { GT: 0, MT: 0, cust: new Set(), dayFak: new Map() }))
-    s[ch] += r.om
+    s[ch] += r.v
     s.cust.add(r.c)
     addTo(s.dayFak, r.d, fak)
 
     let t = toko.get(r.c)
     if (!t) toko.set(r.c, (t = { cn: r.cn, om: 0, sku: new Set() }))
-    t.om += r.om
+    t.om += r.v
     if (r.k) t.sku.add(r.k)
   }
 
@@ -215,32 +278,28 @@ export interface MonthTotal {
   total: number
 }
 
-export function monthlyTotals(cfg: DistributorConfig, rows: SaleRow[]): MonthTotal[] {
+export function monthlyTotals(rows: Row[]): MonthTotal[] {
   const m = new Map<string, MonthTotal>()
   for (const r of rows) {
-    const ch = channelOf(cfg, r)
-    if (ch === 'X') continue
     const k = monthOf(r.d)
     let t = m.get(k)
     if (!t) m.set(k, (t = { month: k, GT: 0, MT: 0, total: 0 }))
-    t[ch] += r.om
-    t.total += r.om
+    t[r.ch] += r.v
+    t.total += r.v
   }
   return [...m.values()].sort((a, b) => a.month.localeCompare(b.month))
 }
 
 // Kontribusi omset per brand dalam beberapa bulan terakhir (untuk membagi target).
-export function brandShares(cfg: DistributorConfig, rows: SaleRow[], months: string[]): Record<string, number> {
+export function brandShares(rows: Row[], months: string[]): Record<string, number> {
   const set = new Set(months)
   const tot: Record<Ch, number> = { GT: 0, MT: 0 }
   const by: Record<string, number> = {}
   for (const r of rows) {
     if (!set.has(monthOf(r.d))) continue
-    const ch = channelOf(cfg, r)
-    if (ch === 'X') continue
-    const key = `${ch}|${brandOf(cfg, r)}`
-    by[key] = (by[key] ?? 0) + r.om
-    tot[ch] += r.om
+    const key = `${r.ch}|${r.b}`
+    by[key] = (by[key] ?? 0) + r.v
+    tot[r.ch] += r.v
   }
   const out: Record<string, number> = {}
   for (const [k, v] of Object.entries(by)) {

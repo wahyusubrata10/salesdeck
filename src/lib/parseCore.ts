@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import { dedupeHeaders, headerScore } from './fields'
-import type { FieldKey, SaleRow } from './types'
+import type { FieldKey, ItemInfo, ItemSource, Mapping, SaleRow } from './types'
 import { parseDate, parseNumber, str } from './values'
 
 export interface SheetInfo {
@@ -17,6 +17,8 @@ export interface ParseResult {
   skipped: number
   minDate: string | null
   maxDate: string | null
+  items?: Record<string, ItemInfo>
+  itemError?: string
 }
 
 const SCAN_ROWS = 30
@@ -50,20 +52,73 @@ export function inspect(buf: ArrayBuffer): SheetInfo[] {
   })
 }
 
-export function parse(buf: ArrayBuffer, sheet: string, headerRow: number, mapping: Partial<Record<FieldKey, string>>): ParseResult {
-  const wb = XLSX.read(buf, { ...LEAN, type: 'array', sheets: [sheet], dense: true })
-  const ws = wb.Sheets[sheet]
-  if (!ws) throw new Error(`Sheet "${sheet}" tidak ditemukan`)
-  const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null })
+export interface ParseOptions {
+  sheet: string
+  headerRow: number
+  mapping: Mapping
+  itemSource?: ItemSource
+}
+
+const readSheet = (wb: XLSX.WorkBook, name: string) => {
+  const ws = wb.Sheets[name]
+  if (!ws) throw new Error(`Sheet "${name}" tidak ditemukan`)
+  return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: null })
+}
+
+// Membaca master barang (kode -> brand/channel/harga) dari sheet lain di file yang sama.
+function readItems(wb: XLSX.WorkBook, src: ItemSource): Record<string, ItemInfo> {
+  const aoa = readSheet(wb, src.sheet)
+  const headers = dedupeHeaders(aoa[src.headerRow] ?? [])
+  const ix = (h?: string) => (h ? headers.indexOf(h) : -1)
+  const [k, n, b, c, h] = [ix(src.key), ix(src.nama), ix(src.brand), ix(src.channel), ix(src.harga)]
+  if (k < 0) throw new Error(`Kolom kunci "${src.key}" tidak ada di sheet "${src.sheet}"`)
+  const out: Record<string, ItemInfo> = {}
+  for (let r = src.headerRow + 1; r < aoa.length; r++) {
+    const row = aoa[r]
+    const key = str(row?.[k])
+    if (!key) continue
+    const it: ItemInfo = out[key] ?? {}
+    const take = (i: number) => (i >= 0 ? str(row[i]) : '')
+    const valid = (v: string) => v && v !== '-' && !/belum dimapping|#n\/a/i.test(v)
+    if (valid(take(n))) it.nama = take(n)
+    if (valid(take(b))) it.brand = take(b)
+    if (valid(take(c))) it.channel = take(c)
+    if (h >= 0) {
+      const price = parseNumber(row[h])
+      if (price > 0) it.harga = price
+    }
+    out[key] = it
+  }
+  return out
+}
+
+export function parse(buf: ArrayBuffer, opt: ParseOptions): ParseResult {
+  const { sheet, headerRow, mapping, itemSource } = opt
+  const sheets = itemSource && itemSource.sheet !== sheet ? [sheet, itemSource.sheet] : [sheet]
+  const wb = XLSX.read(buf, { ...LEAN, type: 'array', sheets, dense: true })
+  const aoa = readSheet(wb, sheet)
   const headers = dedupeHeaders(aoa[headerRow] ?? [])
   const col = (k: FieldKey) => (mapping[k] ? headers.indexOf(mapping[k]!) : -1)
   const ix = {
     d: col('tanggal'), f: col('faktur'), c: col('kodeCustomer'), cn: col('namaCustomer'),
     s: col('salesman'), k: col('kodeBarang'), n: col('namaBarang'), br: col('brand'),
-    kt: col('kategori'), om: col('omset'), q: col('qty'),
+    kt: col('kategori'), tx: col('jenis'), om: col('omset'), q: col('qty'),
   }
-  if (ix.d < 0 || ix.om < 0 || ix.c < 0) throw new Error('Kolom Tanggal, Omset, dan Kode Customer wajib dipetakan')
+  for (const [k, h] of Object.entries(mapping)) {
+    if (h && !headers.includes(h)) throw new Error(`Kolom "${h}" (${k}) tidak ditemukan di sheet "${sheet}"`)
+  }
+  if (ix.d < 0 || (ix.c < 0 && ix.cn < 0)) throw new Error('Kolom Tanggal dan Kode/Nama Customer wajib dipetakan')
   const get = (row: unknown[], i: number) => (i >= 0 ? row[i] : null)
+
+  let items: Record<string, ItemInfo> | undefined
+  let itemError: string | undefined
+  if (itemSource) {
+    try {
+      items = readItems(wb, itemSource)
+    } catch (e) {
+      itemError = e instanceof Error ? e.message : String(e)
+    }
+  }
 
   const rows: SaleRow[] = []
   let skipped = 0
@@ -73,7 +128,8 @@ export function parse(buf: ArrayBuffer, sheet: string, headerRow: number, mappin
     const row = aoa[r]
     if (!row || row.every((v) => v == null || v === '')) continue
     const d = parseDate(get(row, ix.d))
-    const c = str(get(row, ix.c))
+    const cn = str(get(row, ix.cn))
+    const c = str(get(row, ix.c)) || cn
     if (!d || !c) {
       skipped++
       continue
@@ -83,17 +139,18 @@ export function parse(buf: ArrayBuffer, sheet: string, headerRow: number, mappin
       d,
       f: str(get(row, ix.f)),
       c,
-      cn: str(get(row, ix.cn)) || c,
+      cn: cn || c,
       s: str(get(row, ix.s)) || '(tanpa salesman)',
       k: str(get(row, ix.k)) || n,
       n,
       br: str(get(row, ix.br)),
       kt: str(get(row, ix.kt)),
+      tx: str(get(row, ix.tx)),
       om: parseNumber(get(row, ix.om)),
       q: parseNumber(get(row, ix.q)),
     })
     if (!minDate || d < minDate) minDate = d
     if (!maxDate || d > maxDate) maxDate = d
   }
-  return { rows, skipped, minDate, maxDate }
+  return { rows, skipped, minDate, maxDate, items, itemError }
 }

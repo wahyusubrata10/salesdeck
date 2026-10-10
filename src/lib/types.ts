@@ -10,39 +10,68 @@ export type FieldKey =
   | 'namaBarang'
   | 'brand'
   | 'kategori'
+  | 'jenis'
   | 'omset'
   | 'qty'
 
+export type Mapping = Partial<Record<FieldKey, string>>
+
 export type Channel = 'GT' | 'MT' | 'X' // X = diabaikan
+export type TrxKind = 'IN' | 'X' // IN = dihitung, X = diabaikan
+
+// Data master per kode barang distributor (dipakai bila file penjualan tidak punya brand/channel/harga NFI).
+export interface ItemInfo {
+  nama?: string
+  brand?: string
+  channel?: string // nilai mentah, mis. POLOS / NON POLOS
+  harga?: number // harga NFI per satuan jual distributor
+}
+
+// Sheet di file yang sama untuk memperbarui master barang setiap upload.
+export interface ItemSource {
+  sheet: string
+  headerRow: number
+  key: string
+  nama?: string
+  brand?: string
+  channel?: string
+  harga?: string
+}
 
 export interface DistributorConfig {
   id: string
   nama: string
+  fileHint?: string // kata kunci di nama file, mis. "TEWEH"
   sheet?: string
   headerRow?: number // 0-based index baris header
-  mapping: Partial<Record<FieldKey, string>> // field -> nama header
-  // nilai mentah kolom kategori -> channel. Nilai yang tidak ada di sini memakai defaultChannel.
-  channelMap: Record<string, Channel>
-  defaultChannel: Channel
-  // nilai mentah kolom brand -> nama grup brand. Kosong/tidak ada = pakai nilai mentah.
-  brandMap: Record<string, string>
+  mapping: Mapping // field -> nama header
+  channelMap: Record<string, Channel> // nilai kategori -> channel
+  defaultChannel: Channel // dipakai bila tidak ada kolom kategori
+  trxMap: Record<string, TrxKind> // nilai kolom jenis transaksi -> dihitung/diabaikan
+  brandMap: Record<string, string> // nilai brand -> nama grup brand
+  salesmanMap: Record<string, string> // penyamaan nama salesman
+  // 'kolom' = omset dari kolom omset; 'master' = qty × harga NFI dari master barang
+  omsetMode: 'kolom' | 'master'
+  items: Record<string, ItemInfo>
+  itemSource?: ItemSource
   fileName?: string
   updatedAt?: string
   rowCount?: number
 }
 
-// Satu baris transaksi yang sudah dinormalisasi.
+// Satu baris transaksi yang sudah dinormalisasi (nilai mentah; aturan diterapkan saat menghitung).
 export interface SaleRow {
   d: string // YYYY-MM-DD
   f: string // no faktur
-  c: string // kode customer
+  c: string // kode customer (atau nama bila tidak ada kode)
   cn: string // nama customer
   s: string // salesman
   k: string // kode barang
   n: string // nama barang
   br: string // brand mentah
   kt: string // kategori mentah
-  om: number // omset (Rp)
+  tx: string // jenis transaksi mentah
+  om: number // omset dari kolom (Rp)
   q: number // qty
 }
 

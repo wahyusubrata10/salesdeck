@@ -35,10 +35,12 @@ export function parseDate(v: unknown): string | null {
     const [d, mo] = [+m[1], +m[2]]
     return validDate(y, mo, d) ? ymd(y, mo, d) : null
   }
-  m = s.match(/^(\d{1,2})[\s-]+([a-z]{3})[a-z]*[\s-]+(\d{4})/i)
+  // "02-Jan-26", "5 Agustus 2026"
+  m = s.match(/^(\d{1,2})[\s-]+([a-z]{3})[a-z]*[\s-]+(\d{2}|\d{4})\b/i)
   if (m) {
     const mo = MONTHS[m[2].toLowerCase()]
-    const [d, y] = [+m[1], +m[3]]
+    const d = +m[1]
+    const y = m[3].length === 2 ? 2000 + +m[3] : +m[3]
     return mo && validDate(y, mo, d) ? ymd(y, mo, d) : null
   }
   return null

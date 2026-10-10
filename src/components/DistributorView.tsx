@@ -1,32 +1,39 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { dateLabel, monthLabel } from '../lib/dates'
 import { dec, num, pct, ratio, rp, rpShort } from '../lib/format'
-import { CHANNEL_LABEL, CHANNELS, monthlyTotals, summarize, type BrandLine } from '../lib/metrics'
-import type { DistributorConfig, MonthTarget, SaleRow } from '../lib/types'
+import { applyFilter, CHANNEL_LABEL, CHANNELS, isFiltered, monthlyTotals, summarize, type BrandLine, type Ch, type EnrichStats, type Filter, type Row } from '../lib/metrics'
+import type { DistributorConfig, MonthTarget } from '../lib/types'
 import { AchBar, ChartTip, Kpi, Legend, StatusBadge } from './ui'
 import { CH_COLOR } from '../lib/colors'
 
 interface Props {
   cfg: DistributorConfig
   color: string
-  rows: SaleRow[]
+  prepared: { rows: Row[]; stats: EnrichStats }
   target?: MonthTarget
   month: string
 }
 
-export default function DistributorView({ cfg, color, rows, target, month }: Props) {
-  const s = useMemo(() => summarize(cfg, rows, month, target), [cfg, rows, month, target])
-  const trend = useMemo(() => monthlyTotals(cfg, rows).slice(-12), [cfg, rows])
-
-  if (!rows.length) {
-    return (
-      <div className="card empty">
-        <h2>{cfg.nama}</h2>
-        <p>Belum ada data. Upload file Excel di tab <b>Data &amp; Pengaturan</b>.</p>
-      </div>
-    )
+export default function DistributorView({ cfg, color, prepared, target, month }: Props) {
+  const [filter, setFilter] = useState<Filter>({})
+  const filtered = isFiltered(filter)
+  const rows = useMemo(() => applyFilter(prepared.rows, filter), [prepared.rows, filter])
+  // Target hanya berlaku untuk total distributor; saat difilter target disembunyikan.
+  const s = useMemo(() => summarize(rows, month, filtered ? undefined : target), [rows, month, target, filtered])
+  const trend = useMemo(() => monthlyTotals(rows).slice(-12), [rows])
+  const options = useMemo(() => {
+    const ms = prepared.rows.filter((r) => r.d.startsWith(month))
+    return {
+      salesman: [...new Set(ms.map((r) => r.s))].sort(),
+      brand: [...new Set(ms.map((r) => r.b))].sort(),
+    }
+  }, [prepared.rows, month])
+  const toggle = (patch: Filter) => {
+    const k = Object.keys(patch)[0] as keyof Filter
+    setFilter((f) => (f[k] === patch[k] ? { ...f, [k]: undefined } : { ...f, ...patch }))
   }
+  const unpriced = prepared.stats.unpriced
 
   const selisih = s.omset.total - s.target.total
   const hasTarget = s.target.total > 0
@@ -38,6 +45,7 @@ export default function DistributorView({ cfg, color, rows, target, month }: Pro
           <h1 className="row" style={{ gap: 8 }}>
             <span className="swatch" style={{ background: color, width: 14, height: 14 }} />
             {cfg.nama} · {monthLabel(month, true)}
+            {filtered && <span className="small text-2" style={{ fontWeight: 400 }}>· {[filter.salesman, filter.brand, filter.ch].filter(Boolean).join(' · ')}</span>}
           </h1>
           <span className="muted small">
             {s.lastDate ? `Data s/d ${dateLabel(s.lastDate)}` : 'Tidak ada transaksi di bulan ini'} · {cfg.fileName ?? ''}
@@ -57,6 +65,36 @@ export default function DistributorView({ cfg, color, rows, target, month }: Pro
           <Kpi label="Estimasi closing" value={rpShort(s.estClosing)} sub={hasTarget ? `${pct(s.estClosing / s.target.total)} dari target` : undefined} />
         </div>
       </div>
+
+      <div className="card filterbar">
+        <span className="small text-2">Filter</span>
+        <select value={filter.salesman ?? ''} onChange={(e) => setFilter({ ...filter, salesman: e.target.value || undefined })} aria-label="Filter salesman">
+          <option value="">Semua salesman</option>
+          {options.salesman.map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+        <select value={filter.brand ?? ''} onChange={(e) => setFilter({ ...filter, brand: e.target.value || undefined })} aria-label="Filter brand">
+          <option value="">Semua brand</option>
+          {options.brand.map((x) => <option key={x} value={x}>{x}</option>)}
+        </select>
+        <div className="seg" role="group" aria-label="Filter channel">
+          {[undefined, ...CHANNELS].map((c) => (
+            <button key={c ?? 'all'} className={filter.ch === c ? 'on' : ''} onClick={() => setFilter({ ...filter, ch: c as Ch | undefined })}>
+              {c ?? 'GT + MT'}
+            </button>
+          ))}
+        </div>
+        {filtered && <button className="btn" onClick={() => setFilter({})}>Hapus filter</button>}
+        <span className="small muted" style={{ flex: 1, textAlign: 'right' }}>
+          {filtered ? 'Target disembunyikan saat difilter' : 'Klik baris salesman/brand untuk memfilter'}
+        </span>
+      </div>
+
+      {unpriced.length > 0 && (
+        <div className="notice warn">
+          <b>{unpriced.length} barang belum punya harga NFI</b> sehingga omsetnya belum terhitung
+          ({unpriced.slice(0, 4).map((u) => u.n || u.k).join(', ')}{unpriced.length > 4 ? ', …' : ''}). Lengkapi di <b>Data &amp; Pengaturan → Master barang</b>.
+        </div>
+      )}
 
       <div className="card">
         <div className="section-title"><h2>Distribusi</h2></div>
@@ -78,8 +116,9 @@ export default function DistributorView({ cfg, color, rows, target, month }: Pro
         </div>
       </div>
 
-      {CHANNELS.map((ch) => (
-        <BrandTable key={ch} title={CHANNEL_LABEL[ch]} lines={s.brands[ch]} tOmset={s.target[ch]} tEa={s.tEa[ch]} omset={s.omset[ch]} ea={s.ea[ch]} />
+      {CHANNELS.filter((ch) => !filter.ch || filter.ch === ch).map((ch) => (
+        <BrandTable key={ch} title={CHANNEL_LABEL[ch]} lines={s.brands[ch]} tOmset={s.target[ch]} tEa={s.tEa[ch]} omset={s.omset[ch]} ea={s.ea[ch]}
+          active={filter.brand} onPick={(b) => toggle({ brand: b })} />
       ))}
 
       <div className="grid-2">
@@ -120,7 +159,7 @@ export default function DistributorView({ cfg, color, rows, target, month }: Pro
             </thead>
             <tbody>
               {s.salesmen.map((x) => (
-                <tr key={x.name}>
+                <tr key={x.name} className={`clickable${filter.salesman === x.name ? ' selected' : ''}`} onClick={() => toggle({ salesman: x.name })}>
                   <td>{x.name}</td>
                   <td className="n">{rp(x.GT)}</td>
                   <td className="n">{rp(x.MT)}</td>
@@ -181,7 +220,9 @@ function DistRow({ label, t, a, int }: { label: string; t: number; a: number; in
   )
 }
 
-function BrandTable({ title, lines, tOmset, tEa, omset, ea }: { title: string; lines: BrandLine[]; tOmset: number; tEa: number; omset: number; ea: number }) {
+function BrandTable({ title, lines, tOmset, tEa, omset, ea, active, onPick }: {
+  title: string; lines: BrandLine[]; tOmset: number; tEa: number; omset: number; ea: number; active?: string; onPick: (b: string) => void
+}) {
   if (!lines.length && !tOmset) return null
   return (
     <div className="card">
@@ -201,7 +242,7 @@ function BrandTable({ title, lines, tOmset, tEa, omset, ea }: { title: string; l
           </thead>
           <tbody>
             {lines.map((l) => (
-              <Line4 key={l.brand} name={l.brand} t={l.tOmset} a={l.omset} te={l.tEa} ae={l.ea} />
+              <Line4 key={l.brand} name={l.brand} t={l.tOmset} a={l.omset} te={l.tEa} ae={l.ea} selected={active === l.brand} onClick={() => onPick(l.brand)} />
             ))}
             <Line4 total name={`TOTAL ${title.split(' ')[0].toUpperCase()}`} t={tOmset} a={omset} te={tEa} ae={ea} />
           </tbody>
@@ -211,9 +252,11 @@ function BrandTable({ title, lines, tOmset, tEa, omset, ea }: { title: string; l
   )
 }
 
-function Line4({ name, t, a, te, ae, total }: { name: string; t: number; a: number; te: number; ae: number; total?: boolean }) {
+function Line4({ name, t, a, te, ae, total, selected, onClick }: {
+  name: string; t: number; a: number; te: number; ae: number; total?: boolean; selected?: boolean; onClick?: () => void
+}) {
   return (
-    <tr className={total ? 'total' : undefined}>
+    <tr className={total ? 'total' : `clickable${selected ? ' selected' : ''}`} onClick={onClick}>
       <td>{name}</td>
       <td className="n">{t ? rp(t) : '–'}</td>
       <td className="n">{rp(a)}</td>

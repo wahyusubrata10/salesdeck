@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react'
-import type { AppActions, AppData } from '../App'
+import type { AppActions, AppData, Prepared } from '../App'
 import { monthLabel, shiftMonth } from '../lib/dates'
 import { rp } from '../lib/format'
-import { brandOf, brandShares, CHANNEL_LABEL, CHANNELS, channelOf } from '../lib/metrics'
+import { brandShares, CHANNEL_LABEL, CHANNELS } from '../lib/metrics'
 import { emptyTarget, type MonthTarget } from '../lib/types'
 import { NumInput } from './ui'
 import { SERIES } from '../lib/colors'
 
-export default function TargetsView({ data, month, actions }: { data: AppData; month: string; actions: AppActions }) {
+export default function TargetsView({ data, prepared, month, actions }: { data: AppData; prepared: Prepared; month: string; actions: AppActions }) {
   const [id, setId] = useState(data.configs[0].id)
   const cfg = data.configs.find((c) => c.id === id)!
-  const rows = useMemo(() => data.rows[id] ?? [], [data.rows, id])
+  const rows = useMemo(() => prepared[id]?.rows ?? [], [prepared, id])
   const stored = data.targets[id]?.[month]
   const t: MonthTarget = { ...emptyTarget(), ...stored }
   const save = (next: MonthTarget) => actions.setTarget(id, month, next)
@@ -18,20 +18,17 @@ export default function TargetsView({ data, month, actions }: { data: AppData; m
   // Grup brand per channel yang pernah muncul di data distributor ini.
   const brandNames = useMemo(() => {
     const out = { GT: new Set<string>(), MT: new Set<string>() }
-    for (const r of rows) {
-      const ch = channelOf(cfg, r)
-      if (ch !== 'X') out[ch].add(brandOf(cfg, r))
-    }
+    for (const r of rows) out[r.ch].add(r.b)
     for (const k of Object.keys(stored?.brand ?? {})) {
       const [ch, name] = k.split('|') as ['GT' | 'MT', string]
       out[ch]?.add(name)
     }
     return { GT: [...out.GT].sort(), MT: [...out.MT].sort() }
-  }, [rows, cfg, stored])
+  }, [rows, stored])
 
   const splitByShare = () => {
     const months = [1, 2, 3].map((n) => shiftMonth(month, -n))
-    const shares = brandShares(cfg, rows, months)
+    const shares = brandShares(rows, months)
     const brand: MonthTarget['brand'] = {}
     for (const ch of CHANNELS) {
       for (const b of brandNames[ch]) {

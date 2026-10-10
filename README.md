@@ -5,23 +5,32 @@ meskipun header kolom tiap distributor berbeda.
 
 ## Cara pakai
 
-1. **Data & Pengaturan**: beri nama tiap distributor, lalu **Upload Excel**.
-   - Sheet data dan baris header dideteksi otomatis (mis. sheet `Database`).
-   - Cek pemetaan kolom: header Excel → kolom standar (Tanggal, Omset, Kode Customer, No. Faktur, Salesman, Brand, Kategori, dll.).
-     Pemetaan disimpan per distributor, jadi upload berikutnya langsung memakai pemetaan yang sama.
-   - **Atur pemetaan GT/MT & grup brand**: tentukan nilai kolom kategori mana yang GT/MT/diabaikan,
-     dan samakan nama brand antar distributor.
+1. **Upload file progress** (tab Ringkasan): tarik 1–4 file Excel sekaligus. Distributor dikenali otomatis
+   dari nama file + struktur sheet, lalu dashboard langsung diperbarui. Upload ulang menggantikan data distributor itu.
 2. **Target**: isi target omset & EA per channel, EC/HK, assortment, dan target per brand
    (bisa dibagi otomatis sesuai kontribusi 3 bulan terakhir, atau disalin dari bulan lalu).
-3. **Ringkasan**: perbandingan 4 distributor. **Tab distributor**: detail seperti sheet Dashboard.
+3. **Ringkasan**: perbandingan 4 distributor + matriks brand × distributor.
+   **Tab distributor**: detail seperti sheet Dashboard, dengan filter salesman / brand / GT-MT
+   (klik baris tabel salesman atau brand untuk memfilter).
 
-Upload ulang menggantikan seluruh data distributor tersebut (file biasanya berisi data kumulatif).
+### Preset bawaan per distributor
+
+| Distributor | Sheet | Omset | Catatan |
+|---|---|---|---|
+| SJA Barabai | `Database` | `Jumlah (Rp)` | GT/MT dari `Kategori`; brand "HILO TRADITIONAL" digabung ke HI LO |
+| Teweh | `DATABASE` | `total` | GT/MT dari `CHANNEL` |
+| Buntok | `PENJUALAN` (data mentah) | qty × harga NFI | brand, GT/MT & harga NFI dari master barang yang dibaca dari sheet `DATA RAPI` setiap upload; EA per nama pelanggan |
+| Tanjung | `DATABASE` | `VALUE` | hanya `FAKTUR PENJUALAN`; retur & pembelian diabaikan (bisa diubah) |
+
+Bila format file berubah, buka **Data & Pengaturan → Upload & atur pemetaan** untuk distributor tersebut.
+Di sana juga ada **aturan data**: jenis transaksi, GT/MT, grup brand, penyamaan nama salesman, dan **master barang**
+(kode → brand, channel, harga NFI; barang yang belum punya harga ditandai).
 
 ## Definisi metrik
 
 | Metrik | Rumus |
 |---|---|
-| Omset | jumlah kolom omset (mis. `Jumlah (Rp)`), baris dengan channel "Abaikan" tidak dihitung |
+| Omset | kolom omset atau qty × harga NFI (master barang); baris dengan jenis transaksi/channel "Abaikan" tidak dihitung |
 | GT / MT | dari kolom kategori, mis. `POLOS` = GT, `NON POLOS` = MT |
 | %Ach | omset ÷ target |
 | Time Gone | hari kerja yang sudah lewat ÷ total hari kerja bulan itu (Senin–Sabtu) |
@@ -46,10 +55,10 @@ npm test          # unit test
 npm run build     # hasil statis di dist/ (bisa di-host di GitHub Pages, Netlify, dll.)
 ```
 
-Uji integrasi dengan file Excel asli (file tidak ikut di-commit):
+Uji integrasi dengan file Excel asli 4 distributor (file tidak ikut di-commit) — memastikan angka sama dengan sheet Dashboard:
 
 ```bash
-SAMPLE_XLSX=/path/ke/Q1_2026_SJA_BARABAI.xlsx npm test
+SAMPLE_DIR=/folder/berisi/file-excel npm test
 ```
 
 Stack: Vite + React + TypeScript, SheetJS (parsing di Web Worker), Recharts, idb-keyval.

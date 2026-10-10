@@ -141,6 +141,23 @@ tbody tr:hover td { background: var(--surface-2); }
 .legend .line { width: 14px; height: 2px; display: inline-block; }
 .legend .dash { width: 14px; height: 0; border-top: 2px dashed var(--target); display: inline-block; }
 
+.dropzone { border-style: dashed; border-width: 1.5px; transition: background .15s, border-color .15s; }
+.dropzone.drag { background: var(--surface-2); border-color: var(--accent); }
+.dropzone.compact { padding: 10px 16px; }
+.jobs { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.jobs li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; position: sticky; top: 0; z-index: 5; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; color: var(--text-2); }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button.on { background: var(--accent); color: var(--accent-ink); }
+tr.clickable { cursor: pointer; }
+tr.selected td { background: color-mix(in srgb, var(--accent) 14%, transparent) !important; }
+tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+tr.warn-row td { background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.subpanel { border: 1px solid var(--grid); border-radius: 8px; padding: 12px; }
+
 @media (max-width: 640px) {
   .topbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
   .tabs { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }

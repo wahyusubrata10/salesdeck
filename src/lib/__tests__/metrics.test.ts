@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { timeGone } from '../dates'
 import { guessMapping } from '../fields'
-import { summarize } from '../metrics'
+import { enrich, summarize } from '../metrics'
+import { upgradeConfig } from '../presets'
 import { emptyTarget, type DistributorConfig, type SaleRow } from '../types'
 
-const cfg: DistributorConfig = {
-  id: 'd1', nama: 'Tes', mapping: { kategori: 'Kategori' }, channelMap: { POLOS: 'GT', 'NON POLOS': 'MT', '': 'X' },
-  defaultChannel: 'GT', brandMap: { 'HILO TRADITIONAL': 'HI LO' },
-}
-const row = (p: Partial<SaleRow>): SaleRow => ({ d: '2026-07-01', f: 'F1', c: 'C1', cn: 'Toko 1', s: 'A', k: 'K1', n: '', br: 'NUTRISARI', kt: 'POLOS', om: 100, q: 1, ...p })
+const cfg: DistributorConfig = upgradeConfig({
+  id: 'dx', nama: 'Tes', mapping: { kategori: 'Kategori', jenis: 'KET' }, channelMap: { POLOS: 'GT', 'NON POLOS': 'MT', '': 'X' },
+  defaultChannel: 'GT', brandMap: { 'HILO TRADITIONAL': 'HI LO' }, trxMap: {}, salesmanMap: { 'A - NFI': 'A' }, items: {}, omsetMode: 'kolom',
+})
+const row = (p: Partial<SaleRow>): SaleRow => ({ d: '2026-07-01', f: 'F1', c: 'C1', cn: 'Toko 1', s: 'A', k: 'K1', n: '', br: 'NUTRISARI', kt: 'POLOS', tx: 'Faktur Penjualan', om: 100, q: 1, ...p })
 
 describe('timeGone', () => {
   it('menghitung hari kerja Senin–Sabtu', () => {
@@ -26,10 +27,16 @@ describe('summarize', () => {
     row({ d: '2026-07-02', f: 'F3', br: 'HILO TRADITIONAL', om: 150 }),
     row({ kt: '', om: 999 }), // diabaikan
     row({ d: '2026-06-30', om: 1000 }), // bulan lain
+    row({ tx: 'RETUR PENJUALAN', om: -40 }), // diabaikan (jenis transaksi)
+    row({ tx: 'FAKTUR PEMBELIAN', om: 5000 }), // diabaikan
   ]
   const t = { ...emptyTarget(), GT: { omset: 600, ea: 2 }, MT: { omset: 400, ea: 1 } }
-  const s = summarize(cfg, rows, '2026-07', t, '2026-07-02')
+  const { rows: prepared, stats } = enrich(cfg, rows)
+  const s = summarize(prepared, '2026-07', t, '2026-07-02')
 
+  it('mengabaikan retur/pembelian dan kategori kosong', () => {
+    expect(stats.excluded).toBe(3)
+  })
   it('memisahkan GT/MT dan mengabaikan kategori X', () => {
     expect(s.omset).toEqual({ GT: 300, MT: 300, total: 600 })
     expect(s.ea).toEqual({ GT: 1, MT: 1, total: 2 })
@@ -56,5 +63,17 @@ describe('guessMapping', () => {
       tanggal: 'Tgl Faktur', faktur: 'No Invoice', kodeCustomer: 'Kd Outlet', namaCustomer: 'Nama Toko',
       salesman: 'Sales', brand: 'Merk', omset: 'Nilai', kategori: 'Channel',
     })
+  })
+})
+
+describe('mode master barang', () => {
+  it('omset = qty × harga NFI, brand & channel dari master', () => {
+    const c = upgradeConfig({
+      id: 'dy', nama: 'Buntok', mapping: { namaCustomer: 'Nama' }, omsetMode: 'master',
+      items: { A: { brand: 'HI LO', channel: 'POLOS', harga: 17000 }, B: { brand: 'TS', channel: 'NON POLOS' } },
+    })
+    const { rows: r, stats } = enrich(c, [row({ k: 'A', q: 4, om: 76000, br: '', kt: '' }), row({ k: 'B', q: 1, br: '', kt: '' })])
+    expect(r.map((x) => [x.b, x.ch, x.v])).toEqual([['HI LO', 'GT', 68000], ['TS', 'MT', 0]])
+    expect(stats.unpriced.map((u) => u.k)).toEqual(['B'])
   })
 })

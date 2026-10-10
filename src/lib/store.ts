@@ -1,4 +1,5 @@
 import { del, get, set } from 'idb-keyval'
+import { PRESETS, upgradeConfig } from './presets'
 import type { DistributorConfig, SaleRow, Targets } from './types'
 
 // Semua data disimpan di IndexedDB browser ini — tidak dikirim ke server mana pun.
@@ -6,23 +7,14 @@ const K_CONFIGS = 'salesdeck:configs'
 const K_TARGETS = 'salesdeck:targets'
 const kRows = (id: string) => `salesdeck:rows:${id}`
 
-export const DISTRIBUTOR_COUNT = 4
-
-export const defaultConfigs = (): DistributorConfig[] =>
-  Array.from({ length: DISTRIBUTOR_COUNT }, (_, i) => ({
-    id: `d${i + 1}`,
-    nama: `Distributor ${i + 1}`,
-    mapping: {},
-    channelMap: {},
-    defaultChannel: 'GT',
-    brandMap: {},
-  }))
+export const defaultConfigs = (): DistributorConfig[] => structuredClone(PRESETS)
 
 export async function loadAll() {
-  const configs = (await get<DistributorConfig[]>(K_CONFIGS)) ?? defaultConfigs()
+  const stored = await get<DistributorConfig[]>(K_CONFIGS)
+  const configs = stored ? stored.map(upgradeConfig) : defaultConfigs()
   const targets = (await get<Targets>(K_TARGETS)) ?? {}
   const rows: Record<string, SaleRow[]> = {}
-  for (const c of configs) rows[c.id] = (await get<SaleRow[]>(kRows(c.id))) ?? []
+  for (const c of configs) rows[c.id] = ((await get<SaleRow[]>(kRows(c.id))) ?? []).map((r) => ({ ...r, tx: r.tx ?? '' }))
   return { configs, targets, rows }
 }
 

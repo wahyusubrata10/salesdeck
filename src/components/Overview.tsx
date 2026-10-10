@@ -1,22 +1,31 @@
 import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { AppData } from '../App'
+import type { Prepared } from '../App'
 import { dateLabel, monthLabel, timeGone } from '../lib/dates'
 import { dec, num, pct, rp, rpShort } from '../lib/format'
-import { monthlyTotals, summarize } from '../lib/metrics'
+import { CHANNELS, monthlyTotals, summarize } from '../lib/metrics'
+import type { DistributorConfig, Targets } from '../lib/types'
 import { AchBar, ChartTip, Kpi, Legend, StatusBadge } from './ui'
 import { SERIES } from '../lib/colors'
 
-export default function Overview({ data, month, onOpen }: { data: AppData; month: string; onOpen: (id: string) => void }) {
+interface Props {
+  configs: DistributorConfig[]
+  prepared: Prepared
+  targets: Targets
+  month: string
+  onOpen: (id: string) => void
+}
+
+export default function Overview({ configs, prepared, targets, month, onOpen }: Props) {
   const list = useMemo(
     () =>
-      data.configs.map((cfg, i) => ({
+      configs.map((cfg, i) => ({
         cfg,
         color: SERIES[i],
-        hasData: (data.rows[cfg.id]?.length ?? 0) > 0,
-        s: summarize(cfg, data.rows[cfg.id] ?? [], month, data.targets[cfg.id]?.[month]),
+        hasData: (prepared[cfg.id]?.rows.length ?? 0) > 0,
+        s: summarize(prepared[cfg.id]?.rows ?? [], month, targets[cfg.id]?.[month]),
       })),
-    [data, month],
+    [configs, prepared, targets, month],
   )
 
   const tg = timeGone(month)
@@ -27,15 +36,33 @@ export default function Overview({ data, month, onOpen }: { data: AppData; month
 
   const trend = useMemo(() => {
     const byMonth = new Map<string, Record<string, number | string>>()
-    data.configs.forEach((cfg) => {
-      for (const t of monthlyTotals(cfg, data.rows[cfg.id] ?? [])) {
+    configs.forEach((cfg) => {
+      for (const t of monthlyTotals(prepared[cfg.id]?.rows ?? [])) {
         const row = byMonth.get(t.month) ?? { month: t.month }
         row[cfg.id] = t.total
         byMonth.set(t.month, row)
       }
     })
     return [...byMonth.values()].sort((a, b) => String(a.month).localeCompare(String(b.month))).slice(-12)
-  }, [data])
+  }, [configs, prepared])
+
+  // Matriks brand × distributor (omset bulan ini) per channel.
+  const matrix = useMemo(() => {
+    const out = {} as Record<(typeof CHANNELS)[number], { brand: string; by: Record<string, number>; total: number }[]>
+    for (const ch of CHANNELS) {
+      const m = new Map<string, { brand: string; by: Record<string, number>; total: number }>()
+      for (const x of list)
+        for (const b of x.s.brands[ch]) {
+          if (!b.omset) continue
+          const row = m.get(b.brand) ?? { brand: b.brand, by: {}, total: 0 }
+          row.by[x.cfg.id] = b.omset
+          row.total += b.omset
+          m.set(b.brand, row)
+        }
+      out[ch] = [...m.values()].sort((a, b) => b.total - a.total)
+    }
+    return out
+  }, [list])
 
   const achData = list.filter((x) => x.s.ach != null).map((x) => ({ name: x.cfg.nama, id: x.cfg.id, ach: x.s.ach, color: x.color }))
 
@@ -144,18 +171,52 @@ export default function Overview({ data, month, onOpen }: { data: AppData; month
 
         <div className="card">
           <div className="section-title"><h2>Tren omset bulanan</h2></div>
-          <Legend items={data.configs.map((c, i) => ({ label: c.nama, color: SERIES[i], kind: 'line' as const }))} />
+          <Legend items={configs.map((c, i) => ({ label: c.nama, color: SERIES[i], kind: 'line' as const }))} />
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={trend} margin={{ left: 0, right: 16, top: 8 }}>
               <CartesianGrid vertical={false} stroke="var(--grid)" />
               <XAxis dataKey="month" tickFormatter={(m) => monthLabel(m)} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 11 }} />
               <YAxis tickFormatter={rpShort} stroke="var(--axis)" tick={{ fill: 'var(--muted)', fontSize: 11 }} width={60} />
               <Tooltip content={<ChartTip fmt={rp} labelFmt={(m) => monthLabel(m, true)} />} />
-              {data.configs.map((c, i) => (
+              {configs.map((c, i) => (
                 <Line key={c.id} type="monotone" dataKey={c.id} name={c.nama} stroke={SERIES[i]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5, stroke: 'var(--surface)', strokeWidth: 2 }} connectNulls />
               ))}
             </LineChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="card">
+        <div className="section-title"><h2>Omset per brand × distributor</h2><span className="muted small">{monthLabel(month, true)}</span></div>
+        <div className="grid-2">
+          {CHANNELS.map((ch) => (
+            <div key={ch} className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{ch === 'GT' ? 'Traditional (GT)' : 'Modern (MT)'}</th>
+                    {list.filter((x) => x.hasData).map((x) => (
+                      <th key={x.cfg.id} className="n"><span className="row" style={{ gap: 4, justifyContent: 'flex-end' }}><span className="swatch" style={{ background: x.color }} />{x.cfg.nama}</span></th>
+                    ))}
+                    <th className="n">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix[ch].map((r) => (
+                    <tr key={r.brand}>
+                      <td>{r.brand}</td>
+                      {list.filter((x) => x.hasData).map((x) => <td key={x.cfg.id} className="n">{r.by[x.cfg.id] ? rpShort(r.by[x.cfg.id]) : '–'}</td>)}
+                      <td className="n"><b>{rpShort(r.total)}</b></td>
+                    </tr>
+                  ))}
+                  <tr className="total">
+                    <td>Total {ch}</td>
+                    {list.filter((x) => x.hasData).map((x) => <td key={x.cfg.id} className="n">{rpShort(x.s.omset[ch])}</td>)}
+                    <td className="n">{rpShort(list.reduce((a, x) => a + x.s.omset[ch], 0))}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ))}
         </div>
       </div>
     </div>

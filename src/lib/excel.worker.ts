@@ -1,12 +1,11 @@
 /// <reference lib="webworker" />
-import { inspect, parse, type ParseResult, type SheetInfo } from './parseCore'
-import type { FieldKey } from './types'
+import { inspect, parse, type ParseOptions, type ParseResult, type SheetInfo } from './parseCore'
 
 export type { ParseResult, SheetInfo }
 
 export type WorkerRequest =
   | { type: 'inspect'; buf: ArrayBuffer }
-  | { type: 'parse'; buf: ArrayBuffer; sheet: string; headerRow: number; mapping: Partial<Record<FieldKey, string>> }
+  | { type: 'parse'; buf: ArrayBuffer; opt: ParseOptions }
 
 export type WorkerResponse =
   | { type: 'inspect'; sheets: SheetInfo[] }
@@ -19,7 +18,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
     if (msg.type === 'inspect') {
       self.postMessage({ type: 'inspect', sheets: inspect(msg.buf) } satisfies WorkerResponse)
     } else {
-      self.postMessage({ type: 'parse', result: parse(msg.buf, msg.sheet, msg.headerRow, msg.mapping) } satisfies WorkerResponse)
+      self.postMessage({ type: 'parse', result: parse(msg.buf, msg.opt) } satisfies WorkerResponse)
     }
   } catch (err) {
     self.postMessage({ type: 'error', message: err instanceof Error ? err.message : String(err) } satisfies WorkerResponse)
