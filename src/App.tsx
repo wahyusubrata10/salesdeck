@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DetailProvider } from './components/detail/DetailContext'
+import DetailView from './components/detail/DetailViews'
 import DistributorView from './components/DistributorView'
 import Overview from './components/Overview'
 import SettingsView from './components/SettingsView'
@@ -7,9 +9,9 @@ import SyncStatus from './components/SyncStatus'
 import Uploader from './components/Uploader'
 import { SERIES } from './lib/colors'
 import { monthLabel, monthOf, todayYmd } from './lib/dates'
-import type { IngestResult } from './lib/ingest'
+import { mergeRows, type IngestResult } from './lib/ingest'
 import { enrich, type EnrichStats, type Row } from './lib/metrics'
-import { loadAll, localSyncKeys, saveConfigs, saveRows, saveTargets } from './lib/store'
+import { loadAll, loadRows, localSyncKeys, saveConfigs, saveRows, saveTargets } from './lib/store'
 import { seedTargets } from './lib/presetTargets'
 import { initSync, onRemoteChange, onSyncState } from './lib/sync'
 import type { DistributorConfig, MonthTarget, SaleRow, Targets } from './lib/types'
@@ -26,7 +28,7 @@ export type Prepared = Record<string, { rows: Row[]; stats: EnrichStats }>
 export interface AppActions {
   updateConfig: (c: DistributorConfig) => void
   replaceRows: (id: string, rows: SaleRow[]) => Promise<void>
-  applyIngest: (res: IngestResult) => Promise<void>
+  applyIngest: (res: IngestResult) => Promise<number> // total baris setelah digabung
   setTarget: (id: string, month: string, t: MonthTarget) => void
   replaceAll: (configs: DistributorConfig[], targets: Targets) => void
 }
@@ -121,8 +123,11 @@ export default function App() {
     updateConfig,
     replaceRows,
     applyIngest: async (res) => {
-      await replaceRows(res.cfg.id, res.rows)
-      updateConfig(res.cfg)
+      // Baca dari penyimpanan (bukan state) agar beberapa file untuk distributor sama tidak saling menimpa.
+      const merged = mergeRows(await loadRows(res.cfg.id), res.rows)
+      await replaceRows(res.cfg.id, merged)
+      updateConfig({ ...res.cfg, rowCount: merged.length })
+      return merged.length
     },
     setTarget: (id, m, t) =>
       setData((d) => {
@@ -147,10 +152,12 @@ export default function App() {
   const hasAnyData = data.configs.some((c) => data.rows[c.id]?.length)
 
   return (
+    <DetailProvider configs={data.configs} prepared={prepared} targets={data.targets} month={activeMonth}
+      render={(ref, m, setM) => <DetailView refx={ref} month={m} setMonth={setM} />}>
     <div className="app">
       <header className="topbar">
-        <span className="brand">SalesDeck</span>
-        <nav className="tabs">
+        <span className="brand"><span className="logo" aria-hidden>◆</span> SalesDeck</span>
+        <nav className="tabs" aria-label="Menu utama">
           <button className={`tab${tab === 'overview' ? ' active' : ''}`} onClick={() => setTab('overview')}>Ringkasan</button>
           {data.configs.map((c, i) => (
             <button key={c.id} className={`tab${tab === c.id ? ' active' : ''}`} onClick={() => setTab(c.id)}>
@@ -159,19 +166,18 @@ export default function App() {
             </button>
           ))}
           <button className={`tab${tab === 'targets' ? ' active' : ''}`} onClick={() => tab !== 'targets' && openTarget(activeMonth)}>Target</button>
-          <button className={`tab${tab === 'settings' ? ' active' : ''}`} onClick={() => setTab('settings')}>Data &amp; Pengaturan</button>
+          <button className={`tab${tab === 'settings' ? ' active' : ''}`} onClick={() => setTab('settings')}>Data</button>
         </nav>
-        <SyncStatus />
-        {tab !== 'settings' && tab !== 'targets' && (
-          <label className="row small text-2" style={{ gap: 6 }}>
-            Bulan
-            <select value={activeMonth} onChange={(e) => setMonth(e.target.value)}>
+        <div className="topbar-actions">
+          {tab !== 'settings' && tab !== 'targets' && (
+            <select className="month-select" value={activeMonth} onChange={(e) => setMonth(e.target.value)} aria-label="Bulan">
               {months.map((m) => (
                 <option key={m} value={m}>{monthLabel(m, true)}</option>
               ))}
             </select>
-          </label>
-        )}
+          )}
+          <SyncStatus />
+        </div>
       </header>
 
       {(tab === 'overview' || tab === 'settings' || !hasAnyData) && tab !== 'targets' && (
@@ -210,5 +216,6 @@ export default function App() {
         <SettingsView data={data} prepared={prepared} actions={actions} pending={pending} onPendingDone={() => setPending(null)} />
       )}
     </div>
+    </DetailProvider>
   )
 }

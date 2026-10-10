@@ -5,27 +5,31 @@ meskipun header kolom tiap distributor berbeda.
 
 ## Cara pakai
 
-1. **Upload file progress** (tab Ringkasan): tarik 1–4 file Excel sekaligus. Distributor dikenali otomatis
-   dari nama file + struktur sheet, lalu dashboard langsung diperbarui. Upload ulang menggantikan data distributor itu.
-2. **Target**: pilih bulan & tahun (termasuk bulan depan), isi target omset & EA per channel, EC/HK, assortment,
-   dan target per brand (bisa dibagi otomatis sesuai kontribusi 3 bulan terakhir, atau disalin dari bulan lalu).
-   Tabel **Status target** menandai bulan/distributor yang belum diisi; Ringkasan juga menampilkan pengingat.
-3. **Ringkasan**: perbandingan 4 distributor + matriks brand × distributor.
-   **Tab distributor**: detail seperti sheet Dashboard, dengan filter salesman / brand / GT-MT
-   (klik baris tabel salesman atau brand untuk memfilter).
+1. **Upload data penjualan** (tab Ringkasan / Data): pilih 1–4 file **data mentah dari email** (Excel/CSV) — dari HP juga bisa.
+   Tidak perlu file monitoring lengkap. Distributor dikenali otomatis dari **judul kolom** (nama file & nama sheet bebas).
+   Data pada rentang tanggal di file menggantikan data lama pada tanggal yang sama; tanggal lain tetap
+   (jadi file harian, mingguan, maupun kumulatif sama-sama aman).
+2. **Target**: pilih bulan & tahun, isi target omset & EA per channel, EC/HK, assortment, dan per brand.
+   Target dari Excel sudah terisi otomatis (SJA Jul, Teweh & Buntok Sep, Tanjung Jul–Sep 2026).
+3. **Ringkasan**: kartu per distributor (omset, tren vs bulan lalu, pencapaian vs time gone), grafik, matriks brand × distributor.
+4. **Tab distributor**: Ikhtisar · Toko · Produk · Salesman · Area · Transaksi. **Semua bisa diklik** untuk melihat detail:
+   toko (alamat, area, salesman, tren per bulan, brand, produk dibeli, riwayat faktur, terakhir order),
+   produk (toko pembeli, toko yang biasa beli tapi bulan ini belum), salesman/area (EA, EC, toko belum order),
+   brand, hari, dan isi faktur. Di dalam panel detail pun bisa klik lagi (tombol ‹ Kembali).
 
-### Preset bawaan per distributor
+### Master barang tertanam
 
-| Distributor | Sheet | Omset | Catatan |
-|---|---|---|---|
-| SJA Barabai | `Database` | `Jumlah (Rp)` | GT/MT dari `Kategori`; brand "HILO TRADITIONAL" digabung ke HI LO |
-| Teweh | `DATABASE` | `total` | GT/MT dari `CHANNEL` |
-| Buntok | `PENJUALAN` (data mentah) | qty × harga NFI | brand, GT/MT & harga NFI dari master barang yang dibaca dari sheet `DATA RAPI` setiap upload; EA per nama pelanggan |
-| Tanjung | `DATABASE` | `VALUE` | hanya `FAKTUR PENJUALAN`; retur & pembelian diabaikan (bisa diubah) |
+File mentah tidak punya kolom Brand / GT-MT, jadi website memakai master barang yang disalin dari Excel
+(`src/data/items.json`, dibuat dari sheet *Kat Tabi*, *Master Item Regular*, *Mapping Item* dan hasil rumus di sheet database):
 
-Bila format file berubah, buka **Data & Pengaturan → Upload & atur pemetaan** untuk distributor tersebut.
-Di sana juga ada **aturan data**: jenis transaksi, GT/MT, grup brand, penyamaan nama salesman, dan **master barang**
-(kode → brand, channel, harga NFI; barang yang belum punya harga ditandai).
+| Distributor | Kolom kunci di file mentah | Master |
+|---|---|---|
+| SJA Barabai | `Kode Barang` (kode Nutrifood) | Kat Tabi + Database SJA |
+| Teweh | `kode_brg` | Master Item Regular Teweh + DATABASE |
+| Buntok | `Kode Brg` (ACS-NFxx) | Mapping Item + Master Item Regular → harga NFI per satuan |
+| Tanjung | `KODE ITEM` (N301050P → N301050) | Master Item Regular Tanjung + DATABASE |
+
+Barang baru yang belum ada di master ditandai di dashboard dan bisa dilengkapi di **Data & Pengaturan → Master barang**.
 
 ## Definisi metrik
 

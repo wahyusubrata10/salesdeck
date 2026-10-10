@@ -19,6 +19,8 @@ export async function loadAll() {
   return { configs, targets, rows }
 }
 
+export const loadRows = async (id: string) => (await get<SaleRow[]>(kRows(id))) ?? []
+
 // Setiap penyimpanan lokal juga ditandai untuk dikirim ke cloud (bila sinkronisasi aktif).
 export const saveConfigs = (c: DistributorConfig[]) => set(K_CONFIGS, c).then(() => markChanged('configs'))
 export const saveTargets = (t: Targets) => set(K_TARGETS, t).then(() => markChanged('targets'))

@@ -107,6 +107,7 @@ export function parse(buf: ArrayBuffer, opt: ParseOptions): ParseResult {
     d: col('tanggal'), f: col('faktur'), c: col('kodeCustomer'), cn: col('namaCustomer'),
     s: col('salesman'), k: col('kodeBarang'), n: col('namaBarang'), br: col('brand'),
     kt: col('kategori'), tx: col('jenis'), om: col('omset'), q: col('qty'),
+    a: col('alamat'), ar: col('area'),
   }
   for (const [k, h] of Object.entries(mapping)) {
     if (h && !headers.includes(h)) throw new Error(`Kolom "${h}" (${k}) tidak ditemukan di sheet "${sheet}"`)
@@ -152,6 +153,8 @@ export function parse(buf: ArrayBuffer, opt: ParseOptions): ParseResult {
       tx: str(get(row, ix.tx)),
       om: parseNumber(get(row, ix.om)),
       q: parseNumber(get(row, ix.q)),
+      ...(ix.a >= 0 && { a: str(get(row, ix.a)) }),
+      ...(ix.ar >= 0 && { ar: str(get(row, ix.ar)) }),
     })
     if (!minDate || d < minDate) minDate = d
     if (!maxDate || d > maxDate) maxDate = d

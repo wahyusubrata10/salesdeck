@@ -1,7 +1,8 @@
 import { guessChannel, guessTrx } from './fields'
 import { customerKey } from './parseCore'
 import { monthOf, timeGone, todayYmd, workdaysOfMonth, type TimeGone } from './dates'
-import type { DistributorConfig, MonthTarget, SaleRow } from './types'
+import { hasMaster, itemOf } from './masters'
+import type { DistributorConfig, ItemInfo, MonthTarget, SaleRow } from './types'
 import { emptyTarget } from './types'
 
 export const CHANNELS = ['GT', 'MT'] as const
@@ -20,53 +21,76 @@ export interface Row {
   ch: Ch
   b: string // grup brand
   v: number // omset
+  q: number // qty
+  a?: string // alamat
+  ar?: string // area / pasar
+}
+
+export interface ItemIssue {
+  k: string
+  n: string
+  rows: number
 }
 
 export interface EnrichStats {
   excluded: number // baris diabaikan (jenis transaksi / channel)
-  unpriced: { k: string; n: string; rows: number }[] // barang tanpa harga NFI (mode master)
+  unpriced: ItemIssue[] // barang tanpa harga NFI (mode master)
+  unknown: ItemIssue[] // barang yang tidak ada di master (brand/channel tidak diketahui)
 }
 
-export const rawChannel = (cfg: DistributorConfig, r: SaleRow) => cfg.items[r.k]?.channel ?? r.kt
-export const rawBrand = (cfg: DistributorConfig, r: SaleRow) => cfg.items[r.k]?.brand ?? r.br
+export const rawChannel = (cfg: DistributorConfig, r: SaleRow) => itemOf(cfg, r.k)?.channel || r.kt
+export const rawBrand = (cfg: DistributorConfig, r: SaleRow) => itemOf(cfg, r.k)?.brand || r.br
 
 export function enrich(cfg: DistributorConfig, rows: SaleRow[]): { rows: Row[]; stats: EnrichStats } {
   const out: Row[] = []
   let excluded = 0
-  const unpriced = new Map<string, { k: string; n: string; rows: number }>()
+  const unpriced = new Map<string, ItemIssue>()
+  const unknown = new Map<string, ItemIssue>()
+  const note = (m: Map<string, ItemIssue>, r: SaleRow) => {
+    const u = m.get(r.k) ?? { k: r.k, n: r.n, rows: 0 }
+    u.rows++
+    m.set(r.k, u)
+  }
   const noCode = !cfg.mapping.kodeCustomer
-  const hasChannel = !!cfg.mapping.kategori || Object.values(cfg.items).some((i) => i.channel)
+  const useMaster = hasMaster(cfg.id) || Object.values(cfg.items).some((i) => i.channel)
+  const hasChannel = !!cfg.mapping.kategori || useMaster
+  const cache = new Map<string, ItemInfo | undefined>()
+  const item = (k: string) => {
+    if (!cache.has(k)) cache.set(k, itemOf(cfg, k))
+    return cache.get(k)
+  }
   for (const r of rows) {
     if (cfg.mapping.jenis && (cfg.trxMap[r.tx] ?? guessTrx(r.tx)) === 'X') {
       excluded++
       continue
     }
+    const it = item(r.k)
+    // Dicatat sebelum filter channel: barang yang belum dikenal juga belum punya channel.
+    if (useMaster && !it?.channel && !r.kt) note(unknown, r)
     let v = r.om
     if (cfg.omsetMode === 'master') {
-      const h = cfg.items[r.k]?.harga
-      if (!h) {
-        // Dicatat sebelum filter channel: barang yang belum dikenal juga belum punya channel.
-        const u = unpriced.get(r.k) ?? { k: r.k, n: r.n, rows: 0 }
-        u.rows++
-        unpriced.set(r.k, u)
-      }
-      v = r.q * (h ?? 0)
+      if (!it?.harga) note(unpriced, r)
+      v = r.q * (it?.harga ?? 0)
     }
-    const kt = rawChannel(cfg, r)
+    const kt = it?.channel || r.kt
     const ch = hasChannel ? (cfg.channelMap[kt] ?? guessChannel(kt)) : cfg.defaultChannel
     if (ch === 'X') {
       excluded++
       continue
     }
-    const br = rawBrand(cfg, r)
+    const br = it?.brand || r.br
     out.push({
-      d: r.d, f: r.f, c: noCode ? customerKey(r.cn) : r.c, cn: r.cn, k: r.k, n: r.n, ch,
+      d: r.d, f: r.f, c: noCode ? customerKey(r.cn) : r.c, cn: r.cn, k: r.k, n: r.n || it?.nama || r.k, ch,
       s: cfg.salesmanMap[r.s]?.trim() || r.s,
       b: cfg.brandMap[br]?.trim() || br || 'LAINNYA',
       v,
+      q: r.q,
+      a: r.a,
+      ar: r.ar,
     })
   }
-  return { rows: out, stats: { excluded, unpriced: [...unpriced.values()].sort((a, b) => b.rows - a.rows) } }
+  const sort = (m: Map<string, ItemIssue>) => [...m.values()].sort((a, b) => b.rows - a.rows)
+  return { rows: out, stats: { excluded, unpriced: sort(unpriced), unknown: sort(unknown) } }
 }
 
 export interface Filter {

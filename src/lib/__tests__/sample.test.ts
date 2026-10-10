@@ -1,9 +1,10 @@
-// Uji integrasi dengan file Excel asli distributor (tidak ikut di-commit karena berisi data penjualan).
-// Jalankan dengan: SAMPLE_DIR=/folder/berisi/file-excel npm test
+// Uji integrasi dengan file Excel distributor (tidak ikut di-commit karena berisi data penjualan).
+// SAMPLE_DIR boleh berisi file monitoring lengkap ATAU file data mentah (hanya kolom asli, nama file bebas):
+//   SAMPLE_DIR=/folder/berisi/file-excel npm test
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { detectDistributor, findSheet } from '../ingest'
+import { detectDistributor, headersAt } from '../ingest'
 import { enrich, summarize } from '../metrics'
 import { inspect, parse } from '../parseCore'
 import { PRESETS } from '../presets'
@@ -11,24 +12,28 @@ import { PRESETS } from '../presets'
 const dir = process.env.SAMPLE_DIR
 const files = dir ? readdirSync(dir).filter((f) => f.endsWith('.xlsx')) : []
 
-function load(hint: string) {
-  const name = files.find((f) => f.toUpperCase().includes(hint))
-  if (!name) return null
+// Semua file dikenali sekali di awal; distributor ditentukan dari judul kolom, bukan nama file.
+const loaded = new Map<string, ReturnType<typeof loadFile>>()
+function loadFile(name: string) {
   const b = readFileSync(join(dir!, name))
   const buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
   const sheets = inspect(buf)
   const det = detectDistributor(name, sheets, PRESETS)
   expect(det?.fits, `preset cocok untuk ${name}`).toBe(true)
   const cfg = structuredClone(det!.cfg)
-  const itemSheet = cfg.itemSource ? findSheet(sheets, cfg.itemSource.sheet) : undefined
+  const hs = headersAt(det!.sheet, det!.headerRow)
   const res = parse(buf, {
-    sheet: findSheet(sheets, cfg.sheet)!.name,
-    headerRow: cfg.headerRow ?? 0,
-    mapping: cfg.mapping,
-    itemSource: cfg.itemSource && itemSheet ? { ...cfg.itemSource, sheet: itemSheet.name } : undefined,
+    sheet: det!.sheet.name,
+    headerRow: det!.headerRow,
+    mapping: Object.fromEntries(Object.entries(cfg.mapping).filter(([, h]) => h && hs.includes(h))),
   })
-  cfg.items = { ...cfg.items, ...res.items }
   return { cfg, ...enrich(cfg, res.rows) }
+}
+function load(id: string) {
+  if (!loaded.size) for (const f of files) { const d = loadFile(f); loaded.set(d.cfg.id, d) }
+  const d = loaded.get(id)
+  expect(d, `file untuk ${id}`).toBeTruthy()
+  return d!
 }
 
 const brandMap = (lines: { brand: string; omset: number; ea: number }[]) =>
@@ -36,7 +41,7 @@ const brandMap = (lines: { brand: string; omset: number; ea: number }[]) =>
 
 describe.skipIf(!files.length)('file contoh distributor (angka = sheet Dashboard)', () => {
   it('SJA Barabai, Juli 2026', () => {
-    const d = load('BARABAI')!
+    const d = load('d1')
     expect(d.cfg.id).toBe('d1')
     const s = summarize(d.rows, '2026-07', undefined, '2026-08-07')
     expect(s.omset.GT).toBeCloseTo(337336066.46, 0)
@@ -48,7 +53,7 @@ describe.skipIf(!files.length)('file contoh distributor (angka = sheet Dashboard
   }, 60000)
 
   it('Teweh, September 2026', () => {
-    const d = load('TEWEH')!
+    const d = load('d2')
     expect(d.cfg.id).toBe('d2')
     const s = summarize(d.rows, '2026-09')
     expect(Math.round(s.omset.GT)).toBe(39111865)
@@ -60,9 +65,10 @@ describe.skipIf(!files.length)('file contoh distributor (angka = sheet Dashboard
   }, 60000)
 
   it('Buntok, September 2026 (dari sheet PENJUALAN mentah)', () => {
-    const d = load('BUNTOK')!
+    const d = load('d3')
     expect(d.cfg.id).toBe('d3')
     expect(d.stats.unpriced).toEqual([])
+    expect(d.stats.unknown).toEqual([])
     const s = summarize(d.rows, '2026-09')
     expect(Math.round(s.omset.GT)).toBe(29175000)
     expect(Math.round(s.omset.MT)).toBe(16014300)
@@ -77,7 +83,7 @@ describe.skipIf(!files.length)('file contoh distributor (angka = sheet Dashboard
   }, 60000)
 
   it('Tanjung, September 2026 (hanya faktur penjualan)', () => {
-    const d = load('TANJUNG')!
+    const d = load('d4')
     expect(d.cfg.id).toBe('d4')
     const s = summarize(d.rows, '2026-09')
     expect(s.omset.GT).toBeCloseTo(211152150.7, 0)

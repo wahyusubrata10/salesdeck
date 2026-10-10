@@ -6,5 +6,5 @@ export default defineConfig({
   // Path relatif agar bisa di-host di subfolder (GitHub Pages: /salesdeck/) maupun root (Cloudflare Pages).
   base: './',
   plugins: [react()],
-  build: { chunkSizeWarningLimit: 800 }, // recharts + react
+  build: { chunkSizeWarningLimit: 1000 }, // recharts + react + master barang tertanam
 })

@@ -50,11 +50,11 @@ export default function Uploader({ configs, actions, compact, onManual }: {
         }
         setJob(file, { status: 'proses', distId: det.cfg.id })
         const res = await ingest(buf, file.name, sheets, det.cfg)
-        await actions.applyIngest(res)
+        const total = await actions.applyIngest(res)
         const p = res.parse
         setJob(file, {
           status: 'ok',
-          text: `${num(res.rows.length)} baris · ${p.minDate ? dateLabel(p.minDate) : ''} – ${p.maxDate ? dateLabel(p.maxDate) : ''}` +
+          text: `${num(res.rows.length)} baris data ${p.minDate ? dateLabel(p.minDate) : ''} – ${p.maxDate ? dateLabel(p.maxDate) : ''} diperbarui · total ${num(total)} baris` +
             (res.newItems ? ` · ${res.newItems} barang baru di master` : '') +
             (p.itemError ? ` · master barang: ${p.itemError}` : ''),
         })
@@ -83,13 +83,14 @@ export default function Uploader({ configs, actions, compact, onManual }: {
     >
       <div className="row">
         <div style={{ flex: 1, minWidth: 220 }}>
-          <h2 style={{ fontSize: compact ? 14 : 16 }}>Upload file progress</h2>
+          <h2 style={{ fontSize: compact ? 14 : 16 }}>Upload data penjualan</h2>
           <div className="small text-2">
-            Tarik 1–4 file Excel ke sini atau klik tombol. Distributor dikenali otomatis dan dashboard langsung diperbarui.
+            File mentah dari email (Excel/CSV), bisa beberapa sekaligus, dari HP juga bisa. Distributor dikenali otomatis dari
+            kolomnya; data pada tanggal yang sama diganti, tanggal lain tetap.
           </div>
         </div>
         <button className="btn primary" disabled={busy} onClick={() => inputRef.current?.click()}>
-          {busy ? 'Memproses…' : 'Pilih file Excel'}
+          {busy ? 'Memproses…' : 'Pilih file'}
         </button>
         <input
           ref={inputRef}

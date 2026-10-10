@@ -11,6 +11,8 @@ export type FieldKey =
   | 'brand'
   | 'kategori'
   | 'jenis'
+  | 'alamat'
+  | 'area'
   | 'omset'
   | 'qty'
 
@@ -42,6 +44,9 @@ export interface DistributorConfig {
   id: string
   nama: string
   fileHint?: string // kata kunci di nama file, mis. "TEWEH"
+  presetVersion?: number // versi preset pemetaan yang dipakai config ini
+  // Pola kode barang di master, mis. "N\\d{6}" (Tanjung: N301050P -> N301050)
+  itemKeyPattern?: string
   sheet?: string
   headerRow?: number // 0-based index baris header
   mapping: Mapping // field -> nama header
@@ -71,6 +76,8 @@ export interface SaleRow {
   br: string // brand mentah
   kt: string // kategori mentah
   tx: string // jenis transaksi mentah
+  a?: string // alamat customer
+  ar?: string // area / pasar / rute
   om: number // omset dari kolom (Rp)
   q: number // qty
 }

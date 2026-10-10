@@ -87,6 +87,20 @@ export const FIELDS: FieldDef[] = [
     synonyms: ['ket', 'keterangan', 'jenis transaksi', 'jenis', 'tipe transaksi', 'type transaksi', 'jenis faktur'],
   },
   {
+    key: 'alamat',
+    label: 'Alamat',
+    required: false,
+    hint: 'Untuk detail toko (opsional)',
+    synonyms: ['alamat', 'alamat customer', 'alamat toko', 'address'],
+  },
+  {
+    key: 'area',
+    label: 'Area / Pasar',
+    required: false,
+    hint: 'Pasar, rute, kecamatan, atau depo (opsional)',
+    synonyms: ['nama pasar', 'pasar', 'area', 'rute', 'kecamatan', 'kec', 'wilayah', 'depo'],
+  },
+  {
     key: 'qty',
     label: 'Qty',
     required: false,
