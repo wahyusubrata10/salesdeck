@@ -1,0 +1,150 @@
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --accent: #2a78d6;
+  --accent-ink: #ffffff;
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --target: #898781;
+
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --warning-text: #8a5a00;
+  --critical: #d03b3b;
+  --critical-text: #b02a2a;
+
+  --radius: 10px;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--page);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #232321;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --accent: #3987e5;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --good-text: #0ca30c;
+    --warning-text: #fab219;
+    --critical-text: #e66767;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); }
+h1, h2, h3 { margin: 0; font-weight: 600; }
+h1 { font-size: 20px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+button, input, select { font: inherit; color: inherit; }
+
+.app { max-width: 1280px; margin: 0 auto; padding: 16px; }
+.topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.topbar .brand { font-weight: 700; font-size: 18px; margin-right: 8px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.tab {
+  border: 1px solid transparent; background: none; padding: 6px 12px; border-radius: 999px;
+  cursor: pointer; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px;
+}
+.tab:hover { background: var(--surface-2); }
+.tab.active { background: var(--surface); border-color: var(--border); color: var(--text); font-weight: 600; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+.kpi .label { color: var(--text-2); font-size: 12px; }
+.kpi .value { font-size: 22px; font-weight: 600; margin-top: 2px; }
+.kpi .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.hero { font-size: 34px; font-weight: 700; }
+.muted { color: var(--muted); }
+.text-2 { color: var(--text-2); }
+.small { font-size: 12px; }
+.section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+
+.btn {
+  border: 1px solid var(--border); background: var(--surface); padding: 6px 12px; border-radius: 8px; cursor: pointer;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btn.danger { color: var(--critical-text); }
+input[type='text'], input:not([type]), select {
+  border: 1px solid var(--border); background: var(--surface); padding: 6px 8px; border-radius: 8px; min-width: 0;
+}
+input.num { text-align: right; width: 140px; font-variant-numeric: tabular-nums; }
+input.num.sm { width: 80px; }
+label.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: left; white-space: nowrap; }
+th { color: var(--text-2); font-weight: 600; font-size: 12px; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+tr.total td { font-weight: 600; border-top: 1px solid var(--axis); }
+tbody tr:hover td { background: var(--surface-2); }
+
+.status { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; font-size: 12px; white-space: nowrap; }
+.status.good { color: var(--good-text); }
+.status.warning { color: var(--warning-text); }
+.status.critical { color: var(--critical-text); }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; }
+.good .dot { background: var(--good); }
+.warning .dot { background: var(--warning); }
+.critical .dot { background: var(--critical); }
+
+.bar { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: visible; min-width: 80px; }
+.bar > .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--accent); }
+.bar > .tg { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text); }
+
+.notice { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); font-size: 13px; }
+.notice.warn { border-left: 3px solid var(--warning); }
+.notice.err { border-left: 3px solid var(--critical); color: var(--critical-text); }
+.empty { text-align: center; padding: 40px 16px; color: var(--text-2); }
+
+.chart-tip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.chart-tip .t { font-weight: 600; margin-bottom: 4px; }
+.chart-tip .r { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.chart-tip .r span:last-child { font-variant-numeric: tabular-nums; margin-left: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend .line { width: 14px; height: 2px; display: inline-block; }
+.legend .dash { width: 14px; height: 0; border-top: 2px dashed var(--target); display: inline-block; }
+
+@media (max-width: 640px) {
+  .topbar { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
+  .tabs { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .tab { white-space: nowrap; }
+  .hero { font-size: 26px; }
+  .kpi .value { font-size: 18px; }
+}
