@@ -4,7 +4,7 @@ import type { Prepared } from '../App'
 import { dateLabel, monthLabel, timeGone } from '../lib/dates'
 import { dec, num, pct, rp, rpShort } from '../lib/format'
 import { CHANNELS, monthlyTotals, summarize } from '../lib/metrics'
-import type { DistributorConfig, Targets } from '../lib/types'
+import { isTargetFilled, type DistributorConfig, type Targets } from '../lib/types'
 import { AchBar, ChartTip, Kpi, Legend, StatusBadge } from './ui'
 import { SERIES } from '../lib/colors'
 
@@ -14,9 +14,10 @@ interface Props {
   targets: Targets
   month: string
   onOpen: (id: string) => void
+  onFillTarget: (month: string, id?: string) => void
 }
 
-export default function Overview({ configs, prepared, targets, month, onOpen }: Props) {
+export default function Overview({ configs, prepared, targets, month, onOpen, onFillTarget }: Props) {
   const list = useMemo(
     () =>
       configs.map((cfg, i) => ({
@@ -75,8 +76,18 @@ export default function Overview({ configs, prepared, targets, month, onOpen }: 
     )
   }
 
+  const missingTarget = list.filter((x) => x.hasData && !isTargetFilled(targets[x.cfg.id]?.[month]))
+
   return (
     <div className="stack">
+      {missingTarget.length > 0 && (
+        <div className="notice warn row" style={{ justifyContent: 'space-between' }}>
+          <span>
+            Target <b>{monthLabel(month, true)}</b> belum diisi untuk {missingTarget.map((x) => x.cfg.nama).join(', ')}.
+          </span>
+          <button className="btn primary" onClick={() => onFillTarget(month, missingTarget[0].cfg.id)}>Isi target sekarang</button>
+        </div>
+      )}
       <div className="card">
         <div className="section-title">
           <h1>Ringkasan {monthLabel(month, true)}</h1>
@@ -165,7 +176,10 @@ export default function Overview({ configs, prepared, targets, month, onOpen }: 
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="empty small">Isi target di tab <b>Target</b> untuk melihat pencapaian.</div>
+            <div className="empty small">
+              Isi target untuk melihat pencapaian.{' '}
+              <button className="btn" onClick={() => onFillTarget(month)}>Isi target</button>
+            </div>
           )}
         </div>
 

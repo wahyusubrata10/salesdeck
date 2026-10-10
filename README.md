@@ -7,8 +7,9 @@ meskipun header kolom tiap distributor berbeda.
 
 1. **Upload file progress** (tab Ringkasan): tarik 1–4 file Excel sekaligus. Distributor dikenali otomatis
    dari nama file + struktur sheet, lalu dashboard langsung diperbarui. Upload ulang menggantikan data distributor itu.
-2. **Target**: isi target omset & EA per channel, EC/HK, assortment, dan target per brand
-   (bisa dibagi otomatis sesuai kontribusi 3 bulan terakhir, atau disalin dari bulan lalu).
+2. **Target**: pilih bulan & tahun (termasuk bulan depan), isi target omset & EA per channel, EC/HK, assortment,
+   dan target per brand (bisa dibagi otomatis sesuai kontribusi 3 bulan terakhir, atau disalin dari bulan lalu).
+   Tabel **Status target** menandai bulan/distributor yang belum diisi; Ringkasan juga menampilkan pengingat.
 3. **Ringkasan**: perbandingan 4 distributor + matriks brand × distributor.
    **Tab distributor**: detail seperti sheet Dashboard, dengan filter salesman / brand / GT-MT
    (klik baris tabel salesman atau brand untuk memfilter).
@@ -40,6 +41,24 @@ Di sana juga ada **aturan data**: jenis transaksi, GT/MT, grup brand, penyamaan 
 | EA | jumlah customer unik |
 | EC / HK | rata-rata jumlah faktur unik per hari transaksi |
 | Assortment / EA | rata-rata jumlah SKU unik per customer (GT) |
+
+## Hosting gratis
+
+Website ini statis (tanpa server), jadi bisa di-host gratis. Pilih salah satu:
+
+**GitHub Pages** (workflow sudah tersedia di `.github/workflows/deploy.yml`)
+1. Buka repo → **Settings → Pages** → *Build and deployment* → Source: **GitHub Actions**.
+2. Buka tab **Actions** → workflow **Deploy** → **Run workflow** (atau push commit baru).
+3. Website tersedia di `https://wahyusubrata10.github.io/salesdeck/`. Setiap push berikutnya otomatis ter-deploy.
+
+**Cloudflare Pages**
+1. Masuk ke dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git**, pilih repo `salesdeck`.
+2. Production branch: branch yang dipakai (mis. `main`), Framework preset: **Vite** (atau isi manual:
+   build command `npm run build`, output directory `dist`).
+3. Website tersedia di `https://salesdeck.pages.dev` (atau nama lain yang dipilih). Setiap push otomatis ter-deploy.
+
+Website yang di-host hanya berisi aplikasinya; data penjualan tetap di browser masing-masing perangkat.
+Di HP/laptop lain, upload file Excel lagi dan gunakan **Export/Import pengaturan & target** untuk memindahkan target.
 
 ## Privasi
 

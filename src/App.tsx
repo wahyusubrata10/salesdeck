@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import DistributorView from './components/DistributorView'
 import Overview from './components/Overview'
 import SettingsView from './components/SettingsView'
-import TargetsView from './components/TargetsView'
+import TargetsView, { type TargetFocus } from './components/TargetsView'
 import Uploader from './components/Uploader'
 import { SERIES } from './lib/colors'
 import { monthLabel, monthOf, todayYmd } from './lib/dates'
@@ -41,6 +41,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('overview')
   const [month, setMonth] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingFile | null>(null)
+  const [targetFocus, setTargetFocus] = useState<TargetFocus & { n: number }>({ month: monthOf(todayYmd()), n: 0 })
 
   useEffect(() => {
     loadAll()
@@ -103,6 +104,11 @@ export default function App() {
     },
   }
 
+  const openTarget = (m: string, id?: string) => {
+    setTargetFocus((f) => ({ month: m, id, n: f.n + 1 }))
+    setTab('targets')
+  }
+
   const dist = data.configs.find((c) => c.id === tab)
   const hasAnyData = data.configs.some((c) => data.rows[c.id]?.length)
 
@@ -118,10 +124,10 @@ export default function App() {
               {c.nama}
             </button>
           ))}
-          <button className={`tab${tab === 'targets' ? ' active' : ''}`} onClick={() => setTab('targets')}>Target</button>
+          <button className={`tab${tab === 'targets' ? ' active' : ''}`} onClick={() => tab !== 'targets' && openTarget(activeMonth)}>Target</button>
           <button className={`tab${tab === 'settings' ? ' active' : ''}`} onClick={() => setTab('settings')}>Data &amp; Pengaturan</button>
         </nav>
-        {tab !== 'settings' && (
+        {tab !== 'settings' && tab !== 'targets' && (
           <label className="row small text-2" style={{ gap: 6 }}>
             Bulan
             <select value={activeMonth} onChange={(e) => setMonth(e.target.value)}>
@@ -146,7 +152,7 @@ export default function App() {
       )}
 
       {tab === 'overview' && hasAnyData && (
-        <Overview configs={data.configs} prepared={prepared} targets={data.targets} month={activeMonth} onOpen={setTab} />
+        <Overview configs={data.configs} prepared={prepared} targets={data.targets} month={activeMonth} onOpen={setTab} onFillTarget={openTarget} />
       )}
       {dist && (data.rows[dist.id]?.length ?? 0) > 0 && (
         <DistributorView
@@ -164,7 +170,7 @@ export default function App() {
           <p>Belum ada data. Upload file progress di tab <b>Ringkasan</b> atau <b>Data &amp; Pengaturan</b>.</p>
         </div>
       )}
-      {tab === 'targets' && <TargetsView data={data} prepared={prepared} month={activeMonth} actions={actions} />}
+      {tab === 'targets' && <TargetsView key={targetFocus.n} data={data} prepared={prepared} focus={targetFocus} actions={actions} />}
       {tab === 'settings' && (
         <SettingsView data={data} prepared={prepared} actions={actions} pending={pending} onPendingDone={() => setPending(null)} />
       )}

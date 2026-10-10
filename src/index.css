@@ -156,6 +156,10 @@ tr.clickable { cursor: pointer; }
 tr.selected td { background: color-mix(in srgb, var(--accent) 14%, transparent) !important; }
 tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 tr.warn-row td { background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.cellbtn { border: 0; background: none; cursor: pointer; padding: 2px 6px; border-radius: 6px; font-variant-numeric: tabular-nums; color: var(--text); }
+.cellbtn:hover { background: var(--surface-2); }
+.cellbtn.empty { color: var(--warning-text); font-weight: 600; }
+.cellbtn.empty::before { content: '! '; }
 .subpanel { border: 1px solid var(--grid); border-radius: 8px; padding: 12px; }
 
 @media (max-width: 640px) {

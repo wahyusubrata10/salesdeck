@@ -99,3 +99,5 @@ export const emptyTarget = (): MonthTarget => ({
   asrt: 0,
   brand: {},
 })
+
+export const isTargetFilled = (t?: MonthTarget) => !!t && t.GT.omset + t.MT.omset > 0
