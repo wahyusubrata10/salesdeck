@@ -34,6 +34,7 @@ export default function DistributorView({ cfg, color, prepared, target, month }:
     setFilter((f) => (f[k] === patch[k] ? { ...f, [k]: undefined } : { ...f, ...patch }))
   }
   const unpriced = prepared.stats.unpriced
+  const hasSalesman = !!cfg.mapping.salesman
 
   const selisih = s.omset.total - s.target.total
   const hasTarget = s.target.total > 0
@@ -68,10 +69,12 @@ export default function DistributorView({ cfg, color, prepared, target, month }:
 
       <div className="card filterbar">
         <span className="small text-2">Filter</span>
-        <select value={filter.salesman ?? ''} onChange={(e) => setFilter({ ...filter, salesman: e.target.value || undefined })} aria-label="Filter salesman">
-          <option value="">Semua salesman</option>
-          {options.salesman.map((x) => <option key={x} value={x}>{x}</option>)}
-        </select>
+        {hasSalesman && (
+          <select value={filter.salesman ?? ''} onChange={(e) => setFilter({ ...filter, salesman: e.target.value || undefined })} aria-label="Filter salesman">
+            <option value="">Semua salesman</option>
+            {options.salesman.map((x) => <option key={x} value={x}>{x}</option>)}
+          </select>
+        )}
         <select value={filter.brand ?? ''} onChange={(e) => setFilter({ ...filter, brand: e.target.value || undefined })} aria-label="Filter brand">
           <option value="">Semua brand</option>
           {options.brand.map((x) => <option key={x} value={x}>{x}</option>)}
@@ -85,7 +88,7 @@ export default function DistributorView({ cfg, color, prepared, target, month }:
         </div>
         {filtered && <button className="btn" onClick={() => setFilter({})}>Hapus filter</button>}
         <span className="small muted" style={{ flex: 1, textAlign: 'right' }}>
-          {filtered ? 'Target disembunyikan saat difilter' : 'Klik baris salesman/brand untuk memfilter'}
+          {filtered ? 'Target disembunyikan saat difilter' : hasSalesman ? 'Klik baris salesman/brand untuk memfilter' : 'Klik baris brand untuk memfilter'}
         </span>
       </div>
 
@@ -150,29 +153,31 @@ export default function DistributorView({ cfg, color, prepared, target, month }:
         </div>
       </div>
 
-      <div className="card">
-        <div className="section-title"><h2>Per salesman</h2></div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Salesman</th><th className="n">Omset GT</th><th className="n">Omset MT</th><th className="n">Total</th><th className="n">Kontribusi</th><th className="n">EA</th><th className="n">EC / HK</th></tr>
-            </thead>
-            <tbody>
-              {s.salesmen.map((x) => (
-                <tr key={x.name} className={`clickable${filter.salesman === x.name ? ' selected' : ''}`} onClick={() => toggle({ salesman: x.name })}>
-                  <td>{x.name}</td>
-                  <td className="n">{rp(x.GT)}</td>
-                  <td className="n">{rp(x.MT)}</td>
-                  <td className="n">{rp(x.total)}</td>
-                  <td className="n">{pct(ratio(x.total, s.omset.total))}</td>
-                  <td className="n">{num(x.ea)}</td>
-                  <td className="n">{dec(x.ecHk)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {hasSalesman && (
+        <div className="card">
+          <div className="section-title"><h2>Per salesman</h2></div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Salesman</th><th className="n">Omset GT</th><th className="n">Omset MT</th><th className="n">Total</th><th className="n">Kontribusi</th><th className="n">EA</th><th className="n">EC / HK</th></tr>
+              </thead>
+              <tbody>
+                {s.salesmen.map((x) => (
+                  <tr key={x.name} className={`clickable${filter.salesman === x.name ? ' selected' : ''}`} onClick={() => toggle({ salesman: x.name })}>
+                    <td>{x.name}</td>
+                    <td className="n">{rp(x.GT)}</td>
+                    <td className="n">{rp(x.MT)}</td>
+                    <td className="n">{rp(x.total)}</td>
+                    <td className="n">{pct(ratio(x.total, s.omset.total))}</td>
+                    <td className="n">{num(x.ea)}</td>
+                    <td className="n">{dec(x.ecHk)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid-2">
         <div className="card">

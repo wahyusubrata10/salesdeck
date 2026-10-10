@@ -70,8 +70,10 @@ describe.skipIf(!files.length)('file contoh distributor (angka = sheet Dashboard
     expect(brandMap(s.brands.GT)['NUTRISARI'][0]).toBe(14640000)
     expect(brandMap(s.brands.GT)['HI LO'][0]).toBe(14535000)
     expect(brandMap(s.brands.MT)).toMatchObject({ 'HI LO': [8849000, expect.any(Number)], TS: [5392100, expect.any(Number)] })
-    // EA dihitung per nama pelanggan (Excel menghitung kode hasil potongan nama, mis. "B7DS", sehingga lebih kecil).
-    expect(s.ea.GT).toBeGreaterThan(28)
+    // Kode customer = nama tanpa spasi ("B7 DS LINA" -> "b7dslina"). Excel memotong nama jadi "B7DS"
+    // sehingga banyak toko tergabung (EA Excel 28/8).
+    expect(d.rows[0].c).toBe('b7dslina')
+    expect(s.ea).toMatchObject({ GT: 51, MT: 25 })
   }, 60000)
 
   it('Tanjung, September 2026 (hanya faktur penjualan)', () => {

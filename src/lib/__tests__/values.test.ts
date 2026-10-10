@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { customerKey } from '../parseCore'
 import { parseDate, parseNumber } from '../values'
 
 describe('parseNumber', () => {
@@ -28,4 +29,12 @@ describe('parseDate', () => {
     ['bukan tanggal', null],
     [12, null],
   ])('%s -> %s', (input, out) => expect(parseDate(input)).toBe(out))
+})
+
+describe('customerKey', () => {
+  it('nama tanpa spasi/tanda baca, huruf kecil', () => {
+    expect(customerKey('B7 DS LINA')).toBe('b7dslina')
+    expect(customerKey(' B7  DS LINA ')).toBe('b7dslina')
+    expect(customerKey('B7 DS MELATI / ALFI')).toBe('b7dsmelatialfi')
+  })
 })

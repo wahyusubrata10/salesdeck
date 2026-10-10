@@ -23,6 +23,10 @@ export interface ParseResult {
 
 const SCAN_ROWS = 30
 
+// Kode unik customer bila file tidak punya kolom kode: nama tanpa spasi/tanda baca, huruf kecil.
+// "B7 DS LINA" -> "b7dslina"
+export const customerKey = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '')
+
 // Hanya nilai sel yang dibutuhkan; mematikan rumus/format membuat parsing ~4x lebih cepat.
 const LEAN = { cellFormula: false, cellHTML: false, cellText: false, cellNF: false, cellStyles: false } as const
 
@@ -129,7 +133,7 @@ export function parse(buf: ArrayBuffer, opt: ParseOptions): ParseResult {
     if (!row || row.every((v) => v == null || v === '')) continue
     const d = parseDate(get(row, ix.d))
     const cn = str(get(row, ix.cn))
-    const c = str(get(row, ix.c)) || cn
+    const c = str(get(row, ix.c)) || customerKey(cn)
     if (!d || !c) {
       skipped++
       continue

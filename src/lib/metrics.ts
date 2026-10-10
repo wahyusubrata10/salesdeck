@@ -1,4 +1,5 @@
 import { guessChannel, guessTrx } from './fields'
+import { customerKey } from './parseCore'
 import { monthOf, timeGone, todayYmd, workdaysOfMonth, type TimeGone } from './dates'
 import type { DistributorConfig, MonthTarget, SaleRow } from './types'
 import { emptyTarget } from './types'
@@ -33,6 +34,7 @@ export function enrich(cfg: DistributorConfig, rows: SaleRow[]): { rows: Row[]; 
   const out: Row[] = []
   let excluded = 0
   const unpriced = new Map<string, { k: string; n: string; rows: number }>()
+  const noCode = !cfg.mapping.kodeCustomer
   const hasChannel = !!cfg.mapping.kategori || Object.values(cfg.items).some((i) => i.channel)
   for (const r of rows) {
     if (cfg.mapping.jenis && (cfg.trxMap[r.tx] ?? guessTrx(r.tx)) === 'X') {
@@ -58,7 +60,7 @@ export function enrich(cfg: DistributorConfig, rows: SaleRow[]): { rows: Row[]; 
     }
     const br = rawBrand(cfg, r)
     out.push({
-      d: r.d, f: r.f, c: r.c, cn: r.cn, k: r.k, n: r.n, ch,
+      d: r.d, f: r.f, c: noCode ? customerKey(r.cn) : r.c, cn: r.cn, k: r.k, n: r.n, ch,
       s: cfg.salesmanMap[r.s]?.trim() || r.s,
       b: cfg.brandMap[br]?.trim() || br || 'LAINNYA',
       v,
