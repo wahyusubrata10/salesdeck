@@ -44,22 +44,21 @@ Di sana juga ada **aturan data**: jenis transaksi, GT/MT, grup brand, penyamaan 
 
 ## Hosting gratis + sinkron antar perangkat (Cloudflare)
 
-Website di-host di **Cloudflare Pages**, data disimpan di **Cloudflare KV** (keduanya gratis) dan dilindungi password.
+Website di-host di **Cloudflare Workers**, data disimpan di **Cloudflare KV** (keduanya gratis) dan dilindungi password.
 Setiap upload Excel, perubahan target, dan pengaturan otomatis tersinkron ke semua perangkat (laptop, HP, dll.).
 
-Setup sekali:
+Setup sekali (Cloudflare **Workers**; konfigurasi ada di `wrangler.jsonc`):
 
-1. **Buat project Pages** — dash.cloudflare.com → *Workers & Pages* → *Create* → *Pages* → *Connect to Git* →
-   pilih repo `salesdeck`. Production branch: branch yang dipakai. Framework preset **Vite**
-   (build command `npm run build`, output directory `dist`) → *Save and Deploy*.
-2. **Buat KV** — *Storage & Databases* → *KV* → *Create* → nama `salesdeck`.
-3. **Hubungkan KV** — project Pages → *Settings* → *Bindings* → *Add* → *KV namespace*:
-   variable name **`SALESDECK`**, namespace `salesdeck`.
-4. **Password** — project Pages → *Settings* → *Variables and Secrets* → *Add* → type *Secret*,
-   name **`APP_PASSWORD`**, value: password pilihanmu (buat yang panjang).
-5. **Deploy ulang** — tab *Deployments* → deployment terbaru → *Retry deployment* (agar binding & password aktif).
-6. Buka `https://<nama-project>.pages.dev`, klik **☁ Masuk untuk sinkron** di kanan atas, masukkan password.
-   Ulangi langkah ini sekali di setiap perangkat.
+1. dash.cloudflare.com → *Workers & Pages* → *Create* → *Import a repository* → pilih repo `salesdeck`,
+   project name `salesdeck`. Build command `npm run build`, deploy command `npx wrangler deploy` → *Deploy*.
+   KV `SALESDECK` dibuat otomatis saat deploy pertama.
+2. Project `salesdeck` → *Settings* → *Variables and secrets* → *Add* → type **Secret**,
+   name **`APP_PASSWORD`**, value: password pilihanmu → *Deploy*.
+3. Buka `https://salesdeck.<akun>.workers.dev`, klik **☁ Masuk untuk sinkron** di kanan atas, masukkan password.
+   Ulangi sekali di setiap perangkat.
+
+Setiap push ke GitHub otomatis ter-deploy. (Alternatif Cloudflare Pages juga didukung lewat folder `functions/`:
+binding KV `SALESDECK` dan secret `APP_PASSWORD` diatur di dashboard Pages.)
 
 Cara kerja sinkron: data disimpan dulu di perangkat (tetap bisa dipakai offline), lalu dikirim ke cloud
 beberapa detik setelah berubah. Perangkat lain menarik data terbaru saat website dibuka, saat tab aktif lagi,
@@ -78,7 +77,8 @@ sudah masuk; gunakan **Keluar dari perangkat ini** (klik ikon ☁) di perangkat 
 ```bash
 npm install
 npm run dev       # http://localhost:5173 (mode lokal saja)
-npm run dev:cf    # Cloudflare Pages lokal + KV, password "dev" (http://localhost:8788)
+npm run dev:cf    # Cloudflare Worker lokal + KV, password "dev" (http://localhost:8787)
+npm run deploy    # deploy manual ke Cloudflare (butuh `wrangler login`)
 npm test          # unit test
 npm run build     # hasil statis di dist/ (bisa di-host di GitHub Pages, Netlify, dll.)
 ```

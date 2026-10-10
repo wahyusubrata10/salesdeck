@@ -1,0 +1,16 @@
+// Konfigurasi Cloudflare Workers (dipakai oleh Workers Builds saat deploy: `npx wrangler deploy`).
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "salesdeck",
+  "main": "server/worker.ts",
+  "compatibility_date": "2025-10-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  // Tanpa "id": Cloudflare membuat KV baru otomatis saat deploy pertama, lalu memakainya terus.
+  "kv_namespaces": [{ "binding": "SALESDECK" }],
+  "observability": { "enabled": true }
+}

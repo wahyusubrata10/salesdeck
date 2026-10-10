@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck:server": "tsc -p server/tsconfig.json",
-    "dev:cf": "npm run build && wrangler pages dev dist --kv SALESDECK --binding APP_PASSWORD=dev"
+    "dev:cf": "npm run build && wrangler dev --var APP_PASSWORD:dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "idb-keyval": "^6.3.0",

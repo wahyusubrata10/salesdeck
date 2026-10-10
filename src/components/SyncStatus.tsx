@@ -19,7 +19,7 @@ export default function SyncStatus() {
   if (s.status === 'checking') return <span className="sync muted small">Memeriksa sinkron…</span>
   if (s.status === 'unavailable') {
     return (
-      <span className="sync muted small" title="Sinkronisasi antar perangkat aktif bila website di-host di Cloudflare Pages (lihat README).">
+      <span className="sync muted small" title="Sinkronisasi antar perangkat aktif bila website di-host di Cloudflare (lihat README).">
         ● Lokal saja
       </span>
     )
