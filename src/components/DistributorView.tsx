@@ -110,7 +110,7 @@ export default function DistributorView({ cfg, color, prepared, target, month }:
               <DistRow label="Rata-rata EC / HK" t={s.tEcHk} a={s.ecHk} />
               <DistRow label="Assortment / EA GT" t={s.tAsrt} a={s.asrtGT} />
               {s.asrtByBrandGT.map((b) => (
-                <DistRow key={b.brand} label={`Assortment / EA ${b.brand} GT`} t={0} a={b.v} />
+                <DistRow key={b.brand} label={`Assortment / EA ${b.brand} GT`} t={b.t} a={b.v} />
               ))}
               <DistRow label="EA GT" t={s.tEa.GT} a={s.ea.GT} int />
               <DistRow label="EA MT" t={s.tEa.MT} a={s.ea.MT} int />

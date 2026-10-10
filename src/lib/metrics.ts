@@ -122,7 +122,7 @@ export interface MonthSummary {
   tEcHk: number
   asrtGT: number
   tAsrt: number
-  asrtByBrandGT: { brand: string; v: number }[]
+  asrtByBrandGT: { brand: string; v: number; t: number }[]
   brands: Record<Ch, BrandLine[]>
   salesmen: SalesmanLine[]
   daily: DailyPoint[]
@@ -257,8 +257,8 @@ export function summarize(
     asrtGT: avgDistinctPer(skuPerCustGT),
     tAsrt: target.asrt,
     asrtByBrandGT: [...skuPerCustBrandGT.entries()]
-      .map(([brand, m]) => ({ brand, v: avgDistinctPer(m) }))
-      .sort((a, b) => b.v - a.v),
+      .map(([brand, m]) => ({ brand, v: avgDistinctPer(m), t: target.asrtBrand?.[brand] ?? 0 }))
+      .sort((a, b) => b.t - a.t || b.v - a.v),
     brands,
     salesmen: [...sales.entries()]
       .map(([name, s]) => ({ name, GT: s.GT, MT: s.MT, total: s.GT + s.MT, ea: s.cust.size, ecHk: avgPerDay(s.dayFak) }))

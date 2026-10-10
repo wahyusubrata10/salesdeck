@@ -29,11 +29,13 @@ export default function TargetsView({ data, prepared, focus, actions }: { data: 
   const statusMonths = useMemo(() => {
     let min = monthOf(todayYmd())
     for (const p of Object.values(prepared)) for (const r of p.rows) if (monthOf(r.d) < min) min = monthOf(r.d)
+    // Bulan yang sudah punya target juga ditampilkan, meski datanya belum di-upload.
+    for (const months of Object.values(data.targets)) for (const m of Object.keys(months)) if (m < min) min = m
     const out: string[] = []
     const last = shiftMonth(monthOf(todayYmd()), 2)
     for (let m = min; m <= last && out.length < 24; m = shiftMonth(m, 1)) out.push(m)
     return out.reverse()
-  }, [prepared])
+  }, [prepared, data.targets])
 
   // Grup brand per channel yang pernah muncul di data semua distributor
   // (agar brand yang belum terjual di distributor ini tetap bisa diberi target).
@@ -139,7 +141,7 @@ export default function TargetsView({ data, prepared, focus, actions }: { data: 
                 <h3 style={{ marginBottom: 6 }}>{CHANNEL_LABEL[ch]}</h3>
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Brand</th><th className="n">Target omset</th><th className="n">Target EA</th></tr></thead>
+                    <thead><tr><th>Brand</th><th className="n">Target omset</th><th className="n">Target EA</th>{ch === 'GT' && <th className="n">SKU / EA</th>}</tr></thead>
                     <tbody>
                       {brandNames[ch].map((b) => {
                         const k = `${ch}|${b}`
@@ -150,6 +152,11 @@ export default function TargetsView({ data, prepared, focus, actions }: { data: 
                             <td>{b}</td>
                             <td className="n"><NumInput value={line.omset} onChange={(v) => setLine({ omset: v })} /></td>
                             <td className="n"><NumInput small value={line.ea} onChange={(v) => setLine({ ea: v })} /></td>
+                            {ch === 'GT' && (
+                              <td className="n">
+                                <NumInput small decimals value={t.asrtBrand?.[b] ?? 0} onChange={(v) => save({ ...t, asrtBrand: { ...t.asrtBrand, [b]: v } })} />
+                              </td>
+                            )}
                           </tr>
                         )
                       })}
@@ -157,6 +164,7 @@ export default function TargetsView({ data, prepared, focus, actions }: { data: 
                         <td>Jumlah</td>
                         <td className="n">{rp(sum)}</td>
                         <td />
+                        {ch === 'GT' && <td />}
                       </tr>
                     </tbody>
                   </table>

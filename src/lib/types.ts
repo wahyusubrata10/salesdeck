@@ -85,6 +85,7 @@ export interface MonthTarget {
   MT: TargetLine
   ecHk: number // target rata-rata EC per hari kerja
   asrt: number // target assortment (SKU) per EA GT
+  asrtBrand?: Record<string, number> // target assortment per EA GT per grup brand
   // key: `${channel}|${grupBrand}`
   brand: Record<string, TargetLine>
 }

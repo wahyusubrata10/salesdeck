@@ -10,7 +10,8 @@ import { monthLabel, monthOf, todayYmd } from './lib/dates'
 import type { IngestResult } from './lib/ingest'
 import { enrich, type EnrichStats, type Row } from './lib/metrics'
 import { loadAll, localSyncKeys, saveConfigs, saveRows, saveTargets } from './lib/store'
-import { initSync, onRemoteChange } from './lib/sync'
+import { seedTargets } from './lib/presetTargets'
+import { initSync, onRemoteChange, onSyncState } from './lib/sync'
 import type { DistributorConfig, MonthTarget, SaleRow, Targets } from './lib/types'
 
 export interface AppData {
@@ -46,17 +47,39 @@ export default function App() {
   const [targetFocus, setTargetFocus] = useState<TargetFocus & { n: number }>({ month: monthOf(todayYmd()), n: 0 })
 
   useEffect(() => {
+    // Target bawaan (dari Excel) baru diisikan setelah sinkron pertama selesai,
+    // agar tidak menimpa target yang sudah diisi di perangkat lain.
+    let seedAllowed = false
+    const reload = async () => {
+      const d = await loadAll()
+      if (seedAllowed) {
+        const next = seedTargets(d.targets)
+        if (next) {
+          await saveTargets(next)
+          d.targets = next
+        }
+      }
+      setData(d)
+    }
+    const offState = onSyncState((s) => {
+      const ready = (s.status === 'ok' && !!s.lastSync) || s.status === 'unavailable'
+      if (ready && !seedAllowed) {
+        seedAllowed = true
+        reload().catch((e) => setError(String(e)))
+      }
+    })
+    // Data dari perangkat lain masuk -> muat ulang dari penyimpanan lokal.
+    const offRemote = onRemoteChange(() => {
+      reload().catch((e) => setError(String(e)))
+    })
     loadAll()
       .then(setData)
       .then(localSyncKeys)
       .then(initSync)
       .catch((e) => setError(String(e)))
-    // Data dari perangkat lain masuk -> muat ulang dari penyimpanan lokal.
-    const off = onRemoteChange(() => {
-      loadAll().then(setData).catch((e) => setError(String(e)))
-    })
     return () => {
-      off()
+      offState()
+      offRemote()
     }
   }, [])
 
