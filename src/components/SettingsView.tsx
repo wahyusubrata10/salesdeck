@@ -71,7 +71,7 @@ export default function SettingsView({ data, prepared, actions, pending, onPendi
         <p className="small text-2" style={{ margin: 0 }}>
           Tiap distributor punya pemetaan kolom sendiri (sudah terisi preset untuk SJA Barabai, Teweh, Buntok, dan Tanjung).
           Cukup upload file progress di atas; gunakan tombol per distributor di bawah bila format filenya berubah.
-          Semua data hanya tersimpan di browser ini.
+          Data disimpan di perangkat ini dan, setelah masuk dengan password (ikon ☁ di kanan atas), tersinkron ke semua perangkat.
         </p>
       </div>
       {data.configs.map((c, i) => (

@@ -42,34 +42,43 @@ Di sana juga ada **aturan data**: jenis transaksi, GT/MT, grup brand, penyamaan 
 | EC / HK | rata-rata jumlah faktur unik per hari transaksi |
 | Assortment / EA | rata-rata jumlah SKU unik per customer (GT) |
 
-## Hosting gratis
+## Hosting gratis + sinkron antar perangkat (Cloudflare)
 
-Website ini statis (tanpa server), jadi bisa di-host gratis. Pilih salah satu:
+Website di-host di **Cloudflare Pages**, data disimpan di **Cloudflare KV** (keduanya gratis) dan dilindungi password.
+Setiap upload Excel, perubahan target, dan pengaturan otomatis tersinkron ke semua perangkat (laptop, HP, dll.).
 
-**GitHub Pages** (workflow sudah tersedia di `.github/workflows/deploy.yml`)
-1. Buka repo → **Settings → Pages** → *Build and deployment* → Source: **GitHub Actions**.
-2. Buka tab **Actions** → workflow **Deploy** → **Run workflow** (atau push commit baru).
-3. Website tersedia di `https://wahyusubrata10.github.io/salesdeck/`. Setiap push berikutnya otomatis ter-deploy.
+Setup sekali:
 
-**Cloudflare Pages**
-1. Masuk ke dash.cloudflare.com → **Workers & Pages → Create → Pages → Connect to Git**, pilih repo `salesdeck`.
-2. Production branch: branch yang dipakai (mis. `main`), Framework preset: **Vite** (atau isi manual:
-   build command `npm run build`, output directory `dist`).
-3. Website tersedia di `https://salesdeck.pages.dev` (atau nama lain yang dipilih). Setiap push otomatis ter-deploy.
+1. **Buat project Pages** — dash.cloudflare.com → *Workers & Pages* → *Create* → *Pages* → *Connect to Git* →
+   pilih repo `salesdeck`. Production branch: branch yang dipakai. Framework preset **Vite**
+   (build command `npm run build`, output directory `dist`) → *Save and Deploy*.
+2. **Buat KV** — *Storage & Databases* → *KV* → *Create* → nama `salesdeck`.
+3. **Hubungkan KV** — project Pages → *Settings* → *Bindings* → *Add* → *KV namespace*:
+   variable name **`SALESDECK`**, namespace `salesdeck`.
+4. **Password** — project Pages → *Settings* → *Variables and Secrets* → *Add* → type *Secret*,
+   name **`APP_PASSWORD`**, value: password pilihanmu (buat yang panjang).
+5. **Deploy ulang** — tab *Deployments* → deployment terbaru → *Retry deployment* (agar binding & password aktif).
+6. Buka `https://<nama-project>.pages.dev`, klik **☁ Masuk untuk sinkron** di kanan atas, masukkan password.
+   Ulangi langkah ini sekali di setiap perangkat.
 
-Website yang di-host hanya berisi aplikasinya; data penjualan tetap di browser masing-masing perangkat.
-Di HP/laptop lain, upload file Excel lagi dan gunakan **Export/Import pengaturan & target** untuk memindahkan target.
+Cara kerja sinkron: data disimpan dulu di perangkat (tetap bisa dipakai offline), lalu dikirim ke cloud
+beberapa detik setelah berubah. Perangkat lain menarik data terbaru saat website dibuka, saat tab aktif lagi,
+dan setiap menit. Bila dua perangkat mengubah hal yang sama, perubahan terakhir yang dipakai.
+Batas gratis KV (1.000 penulisan & 100.000 pembacaan per hari) jauh di atas kebutuhan pemakaian normal.
+
+Tanpa Cloudflare (mis. `npm run dev` atau hosting statis lain) aplikasi tetap jalan dalam mode **Lokal saja**.
 
 ## Privasi
 
-Semua data hanya disimpan di **IndexedDB browser** yang dipakai, tidak dikirim ke server mana pun.
-Gunakan **Export pengaturan & target** untuk cadangan atau pindah perangkat (file Excel perlu di-upload ulang).
+Data penjualan hanya bisa dibaca dengan password (`APP_PASSWORD`). Password disimpan di browser perangkat yang
+sudah masuk; gunakan **Keluar dari perangkat ini** (klik ikon ☁) di perangkat yang bukan milikmu.
 
 ## Pengembangan
 
 ```bash
 npm install
-npm run dev       # http://localhost:5173
+npm run dev       # http://localhost:5173 (mode lokal saja)
+npm run dev:cf    # Cloudflare Pages lokal + KV, password "dev" (http://localhost:8788)
 npm test          # unit test
 npm run build     # hasil statis di dist/ (bisa di-host di GitHub Pages, Netlify, dll.)
 ```

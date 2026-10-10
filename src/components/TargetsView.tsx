@@ -74,7 +74,7 @@ export default function TargetsView({ data, prepared, focus, actions }: { data: 
       <div className="card">
         <div className="section-title">
           <h1>Input target</h1>
-          <span className="muted small">Tersimpan otomatis di browser ini</span>
+          <span className="muted small">Tersimpan otomatis &amp; tersinkron ke semua perangkat</span>
         </div>
         <div className="row" style={{ alignItems: 'flex-end' }}>
           <label className="field">

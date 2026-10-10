@@ -1,8 +1,9 @@
 import { del, get, set } from 'idb-keyval'
 import { PRESETS, upgradeConfig } from './presets'
+import { markChanged, rowsKey } from './sync'
 import type { DistributorConfig, SaleRow, Targets } from './types'
 
-// Semua data disimpan di IndexedDB browser ini — tidak dikirim ke server mana pun.
+// Data disimpan lokal di IndexedDB; perubahan ditandai untuk dikirim ke cloud oleh sync.ts.
 const K_CONFIGS = 'salesdeck:configs'
 const K_TARGETS = 'salesdeck:targets'
 const kRows = (id: string) => `salesdeck:rows:${id}`
@@ -18,10 +19,20 @@ export async function loadAll() {
   return { configs, targets, rows }
 }
 
-export const saveConfigs = (c: DistributorConfig[]) => set(K_CONFIGS, c)
-export const saveTargets = (t: Targets) => set(K_TARGETS, t)
-export const saveRows = (id: string, rows: SaleRow[]) => set(kRows(id), rows)
-export const deleteRows = (id: string) => del(kRows(id))
+// Setiap penyimpanan lokal juga ditandai untuk dikirim ke cloud (bila sinkronisasi aktif).
+export const saveConfigs = (c: DistributorConfig[]) => set(K_CONFIGS, c).then(() => markChanged('configs'))
+export const saveTargets = (t: Targets) => set(K_TARGETS, t).then(() => markChanged('targets'))
+export const saveRows = (id: string, rows: SaleRow[]) => set(kRows(id), rows).then(() => markChanged(rowsKey(id)))
+export const deleteRows = (id: string) => del(kRows(id)).then(() => markChanged(rowsKey(id)))
+
+// Kunci sinkron yang punya data lokal (untuk pertama kali sinkron).
+export async function localSyncKeys(): Promise<string[]> {
+  const out: string[] = []
+  if (await get(K_CONFIGS)) out.push('configs')
+  if (await get(K_TARGETS)) out.push('targets')
+  for (const p of PRESETS) if ((await get<SaleRow[]>(kRows(p.id)))?.length) out.push(rowsKey(p.id))
+  return out
+}
 
 // Cadangan pengaturan (pemetaan header + target), tanpa data transaksi.
 export interface Backup {

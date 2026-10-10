@@ -3,12 +3,14 @@ import DistributorView from './components/DistributorView'
 import Overview from './components/Overview'
 import SettingsView from './components/SettingsView'
 import TargetsView, { type TargetFocus } from './components/TargetsView'
+import SyncStatus from './components/SyncStatus'
 import Uploader from './components/Uploader'
 import { SERIES } from './lib/colors'
 import { monthLabel, monthOf, todayYmd } from './lib/dates'
 import type { IngestResult } from './lib/ingest'
 import { enrich, type EnrichStats, type Row } from './lib/metrics'
-import { loadAll, saveConfigs, saveRows, saveTargets } from './lib/store'
+import { loadAll, localSyncKeys, saveConfigs, saveRows, saveTargets } from './lib/store'
+import { initSync, onRemoteChange } from './lib/sync'
 import type { DistributorConfig, MonthTarget, SaleRow, Targets } from './lib/types'
 
 export interface AppData {
@@ -46,7 +48,16 @@ export default function App() {
   useEffect(() => {
     loadAll()
       .then(setData)
+      .then(localSyncKeys)
+      .then(initSync)
       .catch((e) => setError(String(e)))
+    // Data dari perangkat lain masuk -> muat ulang dari penyimpanan lokal.
+    const off = onRemoteChange(() => {
+      loadAll().then(setData).catch((e) => setError(String(e)))
+    })
+    return () => {
+      off()
+    }
   }, [])
 
   const prepared: Prepared = useMemo(() => {
@@ -127,6 +138,7 @@ export default function App() {
           <button className={`tab${tab === 'targets' ? ' active' : ''}`} onClick={() => tab !== 'targets' && openTarget(activeMonth)}>Target</button>
           <button className={`tab${tab === 'settings' ? ' active' : ''}`} onClick={() => setTab('settings')}>Data &amp; Pengaturan</button>
         </nav>
+        <SyncStatus />
         {tab !== 'settings' && tab !== 'targets' && (
           <label className="row small text-2" style={{ gap: 6 }}>
             Bulan
